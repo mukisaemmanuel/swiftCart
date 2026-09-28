@@ -65,12 +65,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!user) {
-        user = SEED_USERS[0];
+        // User not found, clean up and set guest state
+        setCurrentUser(null);
+        setCurrentSeller(null);
+        setIsLiveAuth(false);
+        localStorage.removeItem('swiftcart_active_user_id');
+        localStorage.removeItem('swiftcart_is_live_auth');
+        return;
       }
 
       setCurrentUser(user);
       setIsLiveAuth(isLive);
       localStorage.setItem('swiftcart_active_user_id', user.id);
+      if (isLive) {
+        localStorage.setItem('swiftcart_is_live_auth', 'true');
+      } else {
+        localStorage.removeItem('swiftcart_is_live_auth');
+      }
 
       // Load seller profile if user is a seller
       if (user.role === 'seller') {
@@ -100,6 +111,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Error loading user profile:', err);
+      setCurrentUser(null);
+      setCurrentSeller(null);
+      setIsLiveAuth(false);
+      localStorage.removeItem('swiftcart_active_user_id');
+      localStorage.removeItem('swiftcart_is_live_auth');
     }
   };
 
@@ -117,23 +133,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await loadUserAndSeller(fbUser.uid, true);
             setIsLoading(false);
           } else {
-            // Fallback to saved local user or default demo buyer
+            // Check local saved user
             const savedUserId = localStorage.getItem('swiftcart_active_user_id');
             const isLocalLive = localStorage.getItem('swiftcart_is_live_auth') === 'true';
             
             if (savedUserId && !isLocalLive) {
               await loadUserAndSeller(savedUserId, false);
             } else {
-              // Default to Grace Kyomugisha (Demo Buyer)
-              await loadUserAndSeller(SEED_USERS[0].id, false);
+              // Guest state (no user logged in)
+              setCurrentUser(null);
+              setCurrentSeller(null);
+              setIsLiveAuth(false);
+              localStorage.removeItem('swiftcart_active_user_id');
+              localStorage.removeItem('swiftcart_is_live_auth');
             }
             setIsLoading(false);
           }
         });
       } catch (err) {
         console.warn('Firebase onAuthStateChanged fallback:', err);
-        const savedUserId = localStorage.getItem('swiftcart_active_user_id') || SEED_USERS[0].id;
-        await loadUserAndSeller(savedUserId, false);
+        const savedUserId = localStorage.getItem('swiftcart_active_user_id');
+        if (savedUserId) {
+          await loadUserAndSeller(savedUserId, false);
+        } else {
+          setCurrentUser(null);
+          setCurrentSeller(null);
+          setIsLiveAuth(false);
+        }
         setIsLoading(false);
       }
     };
@@ -146,6 +172,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const switchUser = async (userId: string) => {
+    if (!userId || userId === 'guest') {
+      await logout();
+      return;
+    }
     setIsLoading(true);
     // If currently signed into Firebase Auth, sign out first for persona switching
     try {
@@ -343,13 +373,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
     } catch (e) {
       console.warn('Firebase signOut:', e);
     }
+    localStorage.removeItem('swiftcart_active_user_id');
     localStorage.removeItem('swiftcart_is_live_auth');
-    const defaultBuyer = SEED_USERS[0];
-    await loadUserAndSeller(defaultBuyer.id, false);
+    setCurrentUser(null);
+    setCurrentSeller(null);
+    setIsLiveAuth(false);
   };
 
   return (

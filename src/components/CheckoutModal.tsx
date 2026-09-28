@@ -28,12 +28,14 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOrderSuccess: (masterOrderId: string) => void;
+  onOpenAuth?: () => void;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
   onOrderSuccess,
+  onOpenAuth,
 }) => {
   const { items, sellerPackages, totalProductsAmountUGX, totalDeliveryFeeUGX, grandTotalUGX, clearCart } = useCart();
   const { currentUser } = useAuth();
@@ -43,7 +45,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Address
   const [fullName, setFullName] = useState(currentUser?.name || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '+256 772 123456');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [district, setDistrict] = useState(UGANDA_DISTRICTS[0] || 'Kampala');
   const [division, setDivision] = useState('Central Division');
   const [streetAddress, setStreetAddress] = useState('Plot 14, Kampala Road');
@@ -52,7 +54,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('mobile_money');
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>('mtn_momo');
-  const [momoPhone, setMomoPhone] = useState(currentUser?.phone || '0772123456');
+  const [momoPhone, setMomoPhone] = useState(currentUser?.phone || '');
+
+  // Synchronize with currentUser when logging in
+  React.useEffect(() => {
+    if (currentUser) {
+      if (!fullName) setFullName(currentUser.name);
+      if (!phone) setPhone(currentUser.phone);
+      if (!momoPhone) setMomoPhone(currentUser.phone);
+    }
+  }, [currentUser]);
 
   // USSD & Processing state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -69,7 +80,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setErrorMessage(null);
 
     if (!currentUser) {
-      setErrorMessage('Please sign in to place an order.');
+      if (onOpenAuth) {
+        onClose();
+        onOpenAuth();
+      } else {
+        setErrorMessage('Please sign in to place an order.');
+      }
       return;
     }
 
@@ -206,6 +222,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           {step === 'details' && (
             <form onSubmit={handleProceedToPayment} className="space-y-6">
+              {!currentUser && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>Account Sign In Required</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800/90 dark:text-amber-300/80">
+                      Please sign in or register to place your order and enable real-time delivery tracking.
+                    </p>
+                  </div>
+                  {onOpenAuth && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenAuth();
+                      }}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shrink-0 transition-all shadow-sm active:scale-95"
+                    >
+                      Sign In / Register
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Multi-Vendor Order Split Summary Banner */}
               <div className="p-4 bg-orange-50/70 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 rounded-2xl">
                 <div className="flex items-center gap-2 text-xs font-bold text-orange-950 dark:text-orange-200 mb-2">

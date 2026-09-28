@@ -22,11 +22,13 @@ import {
 interface OrderTrackingViewProps {
   onBackToShopping: () => void;
   selectedOrderId?: string;
+  onOpenAuth?: () => void;
 }
 
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   onBackToShopping,
   selectedOrderId,
+  onOpenAuth,
 }) => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -38,19 +40,24 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true);
+      if (!currentUser) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
       const all = await dbService.getOrders();
-      // Filter for this buyer unless admin or if exploring
-      if (currentUser?.role === 'admin') {
+      // Admin sees all marketplace orders, buyers see strictly their own orders
+      if (currentUser.role === 'admin') {
         setOrders(all);
       } else {
-        const userOrders = all.filter((o) => o.buyerId === currentUser?.id);
-        setOrders(userOrders.length > 0 ? userOrders : all);
+        const userOrders = all.filter((o) => o.buyerId === currentUser.id);
+        setOrders(userOrders);
       }
       setLoading(false);
     };
 
     fetchOrders();
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.role]);
 
   const filteredOrders = orders.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false;
@@ -103,54 +110,87 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
         </div>
 
         {/* Search */}
-        <div className="relative max-w-xs w-full">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search Order ID (e.g. SWIFT-...)"
-            className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-          />
-          <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
-        </div>
+        {currentUser && (
+          <div className="relative max-w-xs w-full">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search Order ID (e.g. SWIFT-...)"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            />
+            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+          </div>
+        )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-6 text-xs font-semibold">
-        {['all', 'Pending', 'Confirmed', 'Shipped', 'Delivered'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-3.5 py-1.5 rounded-full border transition-all shrink-0 ${
-              statusFilter === status
-                ? 'bg-slate-900 dark:bg-orange-600 text-white border-slate-900 dark:border-orange-600'
-                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
-          >
-            {status === 'all' ? 'All Orders' : status}
-          </button>
-        ))}
-      </div>
-
-      {/* Orders List */}
-      {loading ? (
-        <div className="text-center py-12 text-slate-400 text-xs">Loading your orders...</div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center max-w-md mx-auto shadow-xs">
+      {/* Guest unauthenticated view */}
+      {!currentUser ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center max-w-md mx-auto shadow-xs my-8">
           <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">No orders found</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
-            You don't have any orders matching the current filter.
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">Sign In to Track Orders</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-5 leading-relaxed">
+            Please sign in to view your orders and track live deliveries across Uganda.
           </p>
-          <button
-            onClick={onBackToShopping}
-            className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
-          >
-            Shop Now
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+            {onOpenAuth && (
+              <button
+                onClick={onOpenAuth}
+                className="w-full sm:w-auto px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+              >
+                Sign In
+              </button>
+            )}
+            <button
+              onClick={onBackToShopping}
+              className="w-full sm:w-auto px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl transition-all"
+            >
+              Start Shopping
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <>
+          {/* Filter Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-6 text-xs font-semibold">
+            {['all', 'Pending', 'Confirmed', 'Shipped', 'Delivered'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3.5 py-1.5 rounded-full border transition-all shrink-0 ${
+                  statusFilter === status
+                    ? 'bg-slate-900 dark:bg-orange-600 text-white border-slate-900 dark:border-orange-600'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                {status === 'all' ? 'All Orders' : status}
+              </button>
+            ))}
+          </div>
+
+          {/* Orders List */}
+          {loading ? (
+            <div className="text-center py-12 text-slate-400 text-xs">Loading your orders...</div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center max-w-md mx-auto shadow-xs">
+              <Package className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                {orders.length === 0 ? "You haven't placed any orders yet" : "No orders found"}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
+                {orders.length === 0
+                  ? "Explore products from verified Ugandan sellers and place your first order today."
+                  : "You don't have any orders matching the current filter."}
+              </p>
+              <button
+                onClick={onBackToShopping}
+                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+              >
+                Start Shopping
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
           {filteredOrders.map((order) => {
             const stepIdx = getStepIndex(order.status);
             const isExpanded = expandedOrderId === order.id;
@@ -412,6 +452,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           })}
         </div>
       )}
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 };

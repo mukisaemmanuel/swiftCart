@@ -376,6 +376,10 @@ function MarketplaceApp() {
           <OrderTrackingView
             onBackToShopping={() => setCurrentView('storefront')}
             selectedOrderId={trackingOrderId}
+            onOpenAuth={() => {
+              setAuthDefaultRole('buyer');
+              setIsAuthOpen(true);
+            }}
           />
         )}
       </main>
@@ -503,6 +507,10 @@ function MarketplaceApp() {
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         onOrderSuccess={handleOrderSuccess}
+        onOpenAuth={() => {
+          setAuthDefaultRole('buyer');
+          setIsAuthOpen(true);
+        }}
       />
 
       <AuthModal

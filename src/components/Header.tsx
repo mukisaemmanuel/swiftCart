@@ -223,87 +223,115 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Orders</span>
             </button>
 
-            {/* Account dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
-              >
-                <img
-                  src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80'}
-                  alt={currentUser?.name || 'User'}
-                  className="w-7 h-7 rounded-full object-cover border border-slate-300 dark:border-slate-600"
-                />
-                <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[90px]">
-                    {currentUser?.name.split(' ')[0] || 'Account'}
+            {/* User Account / Auth Actions */}
+            {currentUser ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
+                >
+                  <img
+                    src={currentUser.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.name)}`}
+                    alt={currentUser.name}
+                    className="w-7 h-7 rounded-full object-cover border border-slate-300 dark:border-slate-600 bg-slate-100"
+                  />
+                  <div className="hidden lg:block text-left">
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[90px]">
+                      {currentUser.name.split(' ')[0]}
+                    </div>
+                    <div className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold uppercase">
+                      {currentUser.role}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold uppercase">
-                    {currentUser?.role || 'Guest'}
-                  </div>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
-              </button>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+                </button>
 
-              {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Signed in as</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {currentUser?.name}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser?.email}</p>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      Role: {currentUser?.role}
-                    </span>
-                  </div>
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Signed in as</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {currentUser.name}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser.email}</p>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        Role: {currentUser.role}
+                      </span>
+                    </div>
 
-                  <div className="p-1">
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        onOpenDemoSwitcher();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 rounded-xl flex items-center gap-2"
-                    >
-                      <Sparkles className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      Switch Demo Persona
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        onNavigate('wishlist');
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
-                    >
-                      <Heart className="w-4 h-4 text-rose-500" />
-                      My Wishlist ({wishlistCount})
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        onNavigate('orders');
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
-                    >
-                      <Package className="w-4 h-4 text-slate-500" />
-                      My Orders & Tracking
-                    </button>
-
-                    {currentUser?.role === 'seller' ? (
+                    <div className="p-1">
                       <button
                         onClick={() => {
                           setUserMenuOpen(false);
-                          onNavigate('seller');
+                          onOpenDemoSwitcher();
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 rounded-xl flex items-center gap-2"
+                      >
+                        <Sparkles className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        Switch Demo Persona
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          onNavigate('wishlist');
                         }}
                         className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
                       >
-                        <Store className="w-4 h-4 text-slate-500" />
-                        Seller Dashboard
+                        <Heart className="w-4 h-4 text-rose-500" />
+                        My Wishlist ({wishlistCount})
                       </button>
-                    ) : (
+
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          onNavigate('orders');
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
+                      >
+                        <Package className="w-4 h-4 text-slate-500" />
+                        My Orders & Tracking
+                      </button>
+
+                      {currentUser.role === 'seller' ? (
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            onNavigate('seller');
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
+                        >
+                          <Store className="w-4 h-4 text-slate-500" />
+                          Seller Dashboard
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            onOpenAuth();
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
+                        >
+                          <Store className="w-4 h-4 text-slate-500" />
+                          Register as Seller
+                        </button>
+                      )}
+
+                      {currentUser.role === 'admin' && (
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            onNavigate('admin');
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl flex items-center gap-2"
+                        >
+                          <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          Admin Oversight
+                        </button>
+                      )}
+
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
+
                       <button
                         onClick={() => {
                           setUserMenuOpen(false);
@@ -311,51 +339,46 @@ export const Header: React.FC<HeaderProps> = ({
                         }}
                         className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
                       >
-                        <Store className="w-4 h-4 text-slate-500" />
-                        Register as Seller
+                        <User className="w-4 h-4 text-slate-500" />
+                        Switch / Register Account
                       </button>
-                    )}
 
-                    {currentUser?.role === 'admin' && (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setUserMenuOpen(false);
-                          onNavigate('admin');
+                          await logout();
                         }}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl flex items-center gap-2"
+                        className="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl flex items-center gap-2"
                       >
-                        <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        Admin Oversight
+                        <LogOut className="w-4 h-4 text-red-500" />
+                        Sign Out
                       </button>
-                    )}
-
-                    <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
-
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        onOpenAuth();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
-                    >
-                      <User className="w-4 h-4 text-slate-500" />
-                      Switch / Register Account
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        logout();
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl flex items-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4 text-red-500" />
-                      Sign Out
-                    </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Persona Switcher icon button */}
+                <button
+                  onClick={onOpenDemoSwitcher}
+                  className="p-2 sm:px-2.5 sm:py-2 rounded-xl text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200/80 dark:border-orange-800/60 transition-colors flex items-center gap-1.5"
+                  title="Demo Accounts / Persona Switcher"
+                >
+                  <Sparkles className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                  <span className="hidden xl:inline text-xs font-bold">Demo Switcher</span>
+                </button>
+
+                {/* Prominent Sign In Button */}
+                <button
+                  onClick={onOpenAuth}
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-sm transition-all active:scale-95"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Sign In</span>
+                </button>
+              </div>
+            )}
 
             {/* Cart Button */}
             <button

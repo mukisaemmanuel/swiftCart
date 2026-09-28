@@ -47,7 +47,41 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
             </div>
           )}
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select a predefined Ugandan persona:</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select a predefined Ugandan persona or test as guest:</p>
+
+          {/* Guest option */}
+          <button
+            onClick={async () => {
+              await switchUser('guest');
+              onClose();
+            }}
+            className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between ${
+              !currentUser
+                ? 'border-orange-500 bg-orange-50/70 dark:bg-orange-950/40 ring-2 ring-orange-500/20'
+                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-850'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">
+                👤
+              </div>
+              <div>
+                <div className="font-semibold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                  Guest User (Signed Out)
+                  {!currentUser && (
+                    <span className="flex items-center text-xs text-orange-600 dark:text-orange-400 font-medium">
+                      <UserCheck className="w-3.5 h-3.5 mr-0.5" /> Active
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Browse anonymously without demo data</div>
+              </div>
+            </div>
+
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+              Guest
+            </span>
+          </button>
 
           {SEED_USERS.map((user) => {
             const isActive = currentUser?.id === user.id;
