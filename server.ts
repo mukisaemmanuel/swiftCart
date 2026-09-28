@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { GoogleGenAI, Modality } from '@google/genai';
@@ -31,23 +32,17 @@ const ai = new GoogleGenAI({
 
 // System instructions for different roles
 const SYSTEM_INSTRUCTIONS = {
-  general: `You are the SwiftCart Uganda Smart Shopping Assistant, serving customers across Busia, Busitema University, Jinja, and the Busoga corridor.
-You help buyers discover genuine electronics, laptops, home solar setups, and fresh agricultural produce.
-Provide clear prices in UGX (Ugandan Shillings), highlight warranty info, and give realistic delivery estimates to local zones (e.g., 1-2 hours express to Busitema University campus, 30-60 mins in Busia Town/Customs Border, 1-3 hours to Dabani Hospital, 2-4 hours to Sibanga & Majanji Port).
+  general: `You are the SwiftCart Uganda Smart Shopping Assistant, serving customers across Kampala, Wakiso, Mukono, Jinja, Mbale, Mbarara, Gulu, Busia, and nationwide across Uganda.
+You help buyers discover genuine electronics, smartphones, laptops, fashion, home goods, and fresh agricultural produce.
+Provide clear prices in UGX (Ugandan Shillings), highlight warranty info, and give realistic delivery estimates (e.g., same-day or 24-48 hours doorstep delivery across Uganda).
 Keep responses helpful, structured, and polite with local Ugandan friendliness.`,
 
-  logistics: `You are the SwiftCart Busia & Eastern Uganda Logistics Specialist.
-You have in-depth knowledge of local trading routes:
-- Busitema University Main Campus, Engineering Faculty, Chawo & Sikuda
-- Dabani Sub-county, Dabani Hospital & Majanji Rd
-- Sibanga Central Market & Buteba Valley
-- Busia Municipality & One-Stop Border Post (OSBP)
-- Majanji Port & Lake Victoria fisheries
-- Jinja City, Bugembe, Iganga & Bugiri corridor
-Explain delivery timelines, Swift Express options, Cash on Delivery (COD) availability, and instant MTN MoMo & Airtel Money validation.`,
+  logistics: `You are the SwiftCart Uganda Logistics Specialist.
+You have in-depth knowledge of nationwide delivery corridors across Central, Eastern, Western, and Northern Uganda.
+Explain delivery timelines (24-48 hours nationwide, same-day express in major metropolitan centers), Swift Express logistics, Cash on Delivery (COD) availability, and instant MTN MoMo & Airtel Money checkout confirmation.`,
 
-  procurement: `You are the SwiftCart Procurement & Deep Tech Analyst for high-value purchases, enterprise tech, and bulk trade across the Uganda-Kenya border.
-Provide thorough technical specs comparisons (processors, RAM, battery capacities, solar inverters, voltage stability for off-grid use), bulk pricing discounts in UGX, and warranty terms.`,
+  procurement: `You are the SwiftCart Procurement & Deep Tech Analyst for high-value purchases, enterprise computing, solar energy systems, and bulk merchant commerce across Uganda.
+Provide thorough technical specs comparisons (processors, RAM, battery capacities, solar inverters, voltage stability for off-grid setups), bulk pricing discounts in UGX, and warranty terms.`,
 };
 
 function formatGeminiError(error: any): string {
@@ -319,6 +314,19 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+
+    // Serve transformed index.html in development for all non-API GET routes
+    app.use('*', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req, res) => {
