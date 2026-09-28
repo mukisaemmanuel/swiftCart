@@ -40,7 +40,7 @@ export interface MobileMoneyGateway {
 
 class MtnMoMoSimulator implements MobileMoneyGateway {
   // MTN MoMo Production / Sandbox config placeholders:
-  private subscriptionKey: string = process.env.MTN_MOMO_SUBSCRIPTION_KEY || 'MOCK_MTN_KEY';
+  private subscriptionKey: string = (typeof process !== 'undefined' && process.env?.MTN_MOMO_SUBSCRIPTION_KEY) || 'MOCK_MTN_KEY';
   private targetEnvironment: 'sandbox' | 'live' = 'sandbox';
 
   async initiatePayment(req: PaymentInitiationRequest): Promise<PaymentInitiationResponse> {
@@ -79,7 +79,7 @@ class MtnMoMoSimulator implements MobileMoneyGateway {
 
 class AirtelMoneySimulator implements MobileMoneyGateway {
   // Airtel Money API config placeholders:
-  private clientId: string = process.env.AIRTEL_MONEY_CLIENT_ID || 'MOCK_AIRTEL_ID';
+  private clientId: string = (typeof process !== 'undefined' && process.env?.AIRTEL_MONEY_CLIENT_ID) || 'MOCK_AIRTEL_ID';
   private targetEnvironment: 'staging' | 'production' = 'staging';
 
   async initiatePayment(req: PaymentInitiationRequest): Promise<PaymentInitiationResponse> {
