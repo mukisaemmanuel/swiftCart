@@ -1,0 +1,6 @@
+{
+  "name": "SwiftCart - Uganda Multi-Vendor Marketplace",
+  "description": "Uganda's premier multi-vendor e-commerce marketplace with buyer storefront, seller portal, multi-seller split checkout, MTN/Airtel Mobile Money integration readiness, and order tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

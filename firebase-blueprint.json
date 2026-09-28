@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SwiftCart Database Schema",
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "Registered buyer, seller, or admin",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["buyer", "seller", "admin"] },
+        "notificationPreferences": {
+          "type": "object",
+          "properties": {
+            "orderUpdates": { "type": "boolean" },
+            "sellerNewOrders": { "type": "boolean" },
+            "promotions": { "type": "boolean" },
+            "pushEnabled": { "type": "boolean" }
+          }
+        },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "sellers": {
+      "title": "Seller",
+      "description": "Seller store profile and verification status",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "storeName": { "type": "string" },
+        "phone": { "type": "string" },
+        "isPhoneVerified": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "verificationDocumentUrl": { "type": "string" },
+        "verificationDocumentType": { "type": "string" },
+        "verificationNotes": { "type": "string" },
+        "district": { "type": "string" },
+        "address": { "type": "string" },
+        "bio": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "rating": { "type": "number" },
+        "momoNumber": { "type": "string" },
+        "momoNetwork": { "type": "string" }
+      }
+    },
+    "wishlist_items": {
+      "title": "WishlistItem",
+      "description": "Buyer wishlist link between user and product",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "productId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "notifications": {
+      "title": "Notification",
+      "description": "Push and in-app alerts for order tracking and seller sales",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["order_status", "new_order", "seller_verification", "system"] },
+        "read": { "type": "boolean" },
+        "orderId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "products": {
+      "title": "Product",
+      "description": "Product listing with multi-image support and pricing in UGX",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerStoreName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priceUGX": { "type": "number" },
+        "originalPriceUGX": { "type": "number" },
+        "category": { "type": "string" },
+        "stockQuantity": { "type": "number" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "isExpressDelivery": { "type": "boolean" }
+      }
+    },
+    "orders": {
+      "title": "Order",
+      "description": "Multi-vendor order split per seller",
+      "properties": {
+        "id": { "type": "string" },
+        "masterOrderId": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "buyerPhone": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerStoreName": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotalUGX": { "type": "number" },
+        "deliveryFeeUGX": { "type": "number" },
+        "totalUGX": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["cod", "mobile_money"] },
+        "paymentProvider": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"] },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "reviews": {
+      "title": "Review",
+      "description": "Product reviews with star rating",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
+    }
+  }
+}
