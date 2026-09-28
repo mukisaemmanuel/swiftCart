@@ -6,6 +6,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { dbService } from './services/db';
 import { Product, ProductCategory, Seller } from './types';
+import { SEED_PRODUCTS, SEED_SELLERS } from './data/seedData';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { BannerCarousel } from './components/BannerCarousel';
@@ -42,14 +43,14 @@ function MarketplaceApp() {
   // Navigation view: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist'
   const [currentView, setCurrentView] = useState<'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist'>('storefront');
 
-  // Products & Sellers
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sellers, setSellers] = useState<Seller[]>([]);
+  // Products & Sellers (initialized with seed data for instant, zero-delay rendering)
+  const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
+  const [sellers, setSellers] = useState<Seller[]>(SEED_SELLERS);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [expressOnly, setExpressOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Modals
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -62,15 +63,19 @@ function MarketplaceApp() {
   const [isGeminiVoiceOpen, setIsGeminiVoiceOpen] = useState(false);
 
   const loadMarketplaceData = async () => {
-    setLoading(true);
-    await dbService.initDatabase();
-    const [prods, sllrs] = await Promise.all([
-      dbService.getProducts(),
-      dbService.getSellers(),
-    ]);
-    setProducts(prods);
-    setSellers(sllrs);
-    setLoading(false);
+    try {
+      await dbService.initDatabase();
+      const [prods, sllrs] = await Promise.all([
+        dbService.getProducts(),
+        dbService.getSellers(),
+      ]);
+      if (prods && prods.length > 0) setProducts(prods);
+      if (sllrs && sllrs.length > 0) setSellers(sllrs);
+    } catch (err) {
+      console.warn('Marketplace initial data sync note:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
