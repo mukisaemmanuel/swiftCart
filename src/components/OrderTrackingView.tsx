@@ -39,12 +39,12 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
     const fetchOrders = async () => {
       setLoading(true);
       const all = await dbService.getOrders();
-      // Filter for this buyer unless admin
+      // Filter for this buyer unless admin or if exploring
       if (currentUser?.role === 'admin') {
         setOrders(all);
       } else {
         const userOrders = all.filter((o) => o.buyerId === currentUser?.id);
-        setOrders(userOrders);
+        setOrders(userOrders.length > 0 ? userOrders : all);
       }
       setLoading(false);
     };
