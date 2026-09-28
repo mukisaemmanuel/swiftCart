@@ -129,7 +129,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
 
     setIsUploadingImages(true);
     try {
-      const uploadPromises = Array.from(files).map((file) => uploadImageFile(file));
+      const fileList = Array.from(files) as File[];
+      const uploadPromises = fileList.map((file: File) => uploadImageFile(file));
       const uploadedUrls = await Promise.all(uploadPromises);
       setProdImages((prev) => {
         const combined = [...prev, ...uploadedUrls];
@@ -324,7 +325,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
   // Metrics
   const totalSalesUGX = orders.reduce((sum, o) => sum + o.totalUGX, 0);
   const pendingOrdersCount = orders.filter((o) => o.status === 'Pending').length;
-  const totalWishlistSaves = Object.values(wishlistCounts).reduce((a, b) => a + b, 0);
+  const totalWishlistSaves = Object.values(wishlistCounts).reduce<number>((a: number, b: number) => a + b, 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
