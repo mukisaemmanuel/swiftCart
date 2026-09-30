@@ -200,6 +200,250 @@ Cite real facts clearly and convert relevant prices to Ugandan Shillings (UGX).`
   }
 });
 
+// --- PESAPAL v3 PAYMENT GATEWAY BACKEND INTEGRATION ---
+const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY || '';
+const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || '';
+const PESAPAL_ENV = (process.env.PESAPAL_ENV || 'sandbox').toLowerCase();
+const PESAPAL_BASE_URL =
+  PESAPAL_ENV === 'live'
+    ? 'https://pay.pesapal.com/v3'
+    : 'https://cybqa.pesapal.com/pesapalv3';
+
+let cachedPesapalToken: { token: string; expiresAt: number } | null = null;
+let cachedIpnId: string | null = null;
+
+async function getPesapalToken(): Promise<string> {
+  if (cachedPesapalToken && Date.now() < cachedPesapalToken.expiresAt - 60000) {
+    return cachedPesapalToken.token;
+  }
+
+  if (!PESAPAL_CONSUMER_KEY || !PESAPAL_CONSUMER_SECRET) {
+    throw new Error('Pesapal credentials (PESAPAL_CONSUMER_KEY, PESAPAL_CONSUMER_SECRET) are not configured.');
+  }
+
+  const res = await fetch(`${PESAPAL_BASE_URL}/api/Auth/RequestToken`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      consumer_key: PESAPAL_CONSUMER_KEY,
+      consumer_secret: PESAPAL_CONSUMER_SECRET,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Pesapal Auth RequestToken failed (${res.status}): ${errorText}`);
+  }
+
+  const data = (await res.json()) as { token?: string; expiryDate?: string; status?: string; error?: any };
+  if (!data?.token) {
+    const errorMsg = data?.error?.message || data?.error?.code || 'Pesapal auth response did not contain a valid token.';
+    throw new Error(`Pesapal Auth failed: ${errorMsg}`);
+  }
+
+  const expiresAt = data.expiryDate ? new Date(data.expiryDate).getTime() : Date.now() + 5 * 60 * 1000;
+  cachedPesapalToken = { token: data.token, expiresAt };
+  return data.token;
+}
+
+async function getOrRegisterIPN(token: string): Promise<string> {
+  if (cachedIpnId) return cachedIpnId;
+
+  try {
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const ipnUrl = `${appUrl}/api/payments/pesapal/ipn`;
+    const res = await fetch(`${PESAPAL_BASE_URL}/api/URLSetup/RegisterIPN`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        url: ipnUrl,
+        ipn_notification_type: 'GET',
+      }),
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as { ipn_id?: string; status?: string };
+      if (data?.ipn_id) {
+        cachedIpnId = data.ipn_id;
+        return data.ipn_id;
+      }
+    } else {
+      console.warn('RegisterIPN response non-200:', await res.text());
+    }
+  } catch (err) {
+    console.warn('Error during Pesapal RegisterIPN:', err);
+  }
+
+  return cachedIpnId || 'default_ipn';
+}
+
+// POST /api/payments/pesapal/initiate - Submit order to Pesapal v3
+app.post('/api/payments/pesapal/initiate', async (req, res) => {
+  try {
+    const { orderId, amountUGX, customerPhone, customerName, customerEmail } = req.body;
+
+    if (!orderId || !amountUGX) {
+      return res.status(400).json({ error: 'orderId and amountUGX are required.' });
+    }
+
+    // Clean phone number to 256XXXXXXXXX format
+    let cleanPhone = (customerPhone || '').replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '256' + cleanPhone.slice(1);
+    } else if (!cleanPhone.startsWith('256') && cleanPhone.length === 9) {
+      cleanPhone = '256' + cleanPhone;
+    }
+
+    const token = await getPesapalToken();
+    const ipnId = await getOrRegisterIPN(token);
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+
+    const submitPayload = {
+      id: String(orderId),
+      currency: 'UGX',
+      amount: Number(amountUGX),
+      description: 'SwiftCart Order Fulfillment',
+      callback_url: `${appUrl}/orders`,
+      notification_id: ipnId,
+      billing_address: {
+        phone_number: cleanPhone,
+        first_name: customerName || 'Customer',
+        email_address: customerEmail || 'buyer@swiftcart.ug',
+      },
+    };
+
+    const submitRes = await fetch(`${PESAPAL_BASE_URL}/api/Transactions/SubmitOrderRequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(submitPayload),
+    });
+
+    if (!submitRes.ok) {
+      const errText = await submitRes.text();
+      return res.status(submitRes.status).json({
+        success: false,
+        error: `Pesapal SubmitOrderRequest failed: ${errText}`,
+      });
+    }
+
+    const data = (await submitRes.json()) as {
+      order_tracking_id: string;
+      merchant_reference: string;
+      redirect_url: string;
+      status: string;
+      error?: any;
+    };
+
+    return res.json({
+      success: true,
+      redirect_url: data.redirect_url,
+      order_tracking_id: data.order_tracking_id,
+      merchant_reference: data.merchant_reference,
+    });
+  } catch (error: any) {
+    console.error('Pesapal initiation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to initiate Pesapal payment.',
+    });
+  }
+});
+
+// GET /api/payments/pesapal/ipn - Instant Payment Notification webhook
+app.get('/api/payments/pesapal/ipn', async (req, res) => {
+  try {
+    const orderTrackingId = (req.query.OrderTrackingId || req.query.orderTrackingId) as string;
+    const orderMerchantReference = (req.query.OrderMerchantReference || req.query.orderMerchantReference) as string;
+
+    if (!orderTrackingId) {
+      return res.status(400).json({ error: 'OrderTrackingId is required.' });
+    }
+
+    let status = 'PENDING';
+    try {
+      const token = await getPesapalToken();
+      const statusRes = await fetch(
+        `${PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${encodeURIComponent(orderTrackingId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (statusRes.ok) {
+        const statusData = (await statusRes.json()) as {
+          payment_status_description?: string;
+          status_code?: number;
+          payment_method?: string;
+        };
+        const statusDesc = (statusData.payment_status_description || '').toUpperCase();
+        if (statusDesc === 'COMPLETED' || statusData.status_code === 1) {
+          status = 'COMPLETED';
+        }
+      }
+    } catch (err) {
+      console.warn('Error querying Pesapal transaction status in IPN:', err);
+    }
+
+    // Return HTTP 200 with { status: "200", orderTrackingId } as required by Pesapal specifications
+    return res.status(200).json({
+      status: '200',
+      orderTrackingId,
+      paymentStatus: status,
+      orderMerchantReference,
+    });
+  } catch (error: any) {
+    console.error('Pesapal IPN handler error:', error);
+    return res.status(500).json({ error: 'Internal Server Error processing IPN.' });
+  }
+});
+
+// GET /api/payments/pesapal/status - Query transaction status by tracking ID
+app.get('/api/payments/pesapal/status', async (req, res) => {
+  try {
+    const orderTrackingId = (req.query.orderTrackingId || req.query.OrderTrackingId) as string;
+    if (!orderTrackingId) {
+      return res.status(400).json({ error: 'orderTrackingId is required.' });
+    }
+
+    const token = await getPesapalToken();
+    const statusRes = await fetch(
+      `${PESAPAL_BASE_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${encodeURIComponent(orderTrackingId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!statusRes.ok) {
+      const errText = await statusRes.text();
+      return res.status(statusRes.status).json({ error: errText });
+    }
+
+    const data = await statusRes.json();
+    return res.json(data);
+  } catch (error: any) {
+    return res.status(500).json({ error: error?.message || 'Error checking Pesapal status.' });
+  }
+});
+
 // WebSocket Server for Gemini Live API (gemini-3.8-live)
 const wss = new WebSocketServer({ noServer: true });
 

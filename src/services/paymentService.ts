@@ -115,6 +115,22 @@ class AirtelMoneySimulator implements MobileMoneyGateway {
   }
 }
 
+export interface PesapalInitiationRequest {
+  orderId: string;
+  amountUGX: number;
+  customerPhone: string;
+  customerName: string;
+  customerEmail?: string;
+}
+
+export interface PesapalInitiationResponse {
+  success: boolean;
+  redirect_url?: string;
+  order_tracking_id?: string;
+  merchant_reference?: string;
+  error?: string;
+}
+
 class PaymentService {
   private mtn = new MtnMoMoSimulator();
   private airtel = new AirtelMoneySimulator();
@@ -124,6 +140,41 @@ class PaymentService {
       return this.airtel.initiatePayment(req);
     }
     return this.mtn.initiatePayment(req);
+  }
+
+  async initiatePesapalPayment(req: PesapalInitiationRequest): Promise<PesapalInitiationResponse> {
+    try {
+      const res = await fetch('/api/payments/pesapal/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return {
+          success: false,
+          error: errData.error || `HTTP ${res.status}: Failed to initiate Pesapal payment`,
+        };
+      }
+
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Network error connecting to Pesapal gateway.',
+      };
+    }
+  }
+
+  async checkPesapalStatus(orderTrackingId: string): Promise<any> {
+    try {
+      const res = await fetch(`/api/payments/pesapal/status?orderTrackingId=${encodeURIComponent(orderTrackingId)}`);
+      return await res.json();
+    } catch (err: any) {
+      return { error: err?.message };
+    }
   }
 
   async simulatePinEntryApproval(transactionId: string): Promise<PaymentVerificationResponse> {
