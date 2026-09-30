@@ -80,6 +80,24 @@ function MarketplaceApp() {
 
   useEffect(() => {
     loadMarketplaceData();
+
+    // Check URL parameters for Pesapal payment callback redirect
+    const params = new URLSearchParams(window.location.search);
+    const orderTrackingId = params.get('OrderTrackingId') || params.get('orderTrackingId');
+    const orderRef = params.get('OrderMerchantReference') || params.get('orderMerchantReference');
+    const path = window.location.pathname;
+
+    if (orderTrackingId || path === '/orders') {
+      setCurrentView('orders');
+      if (orderRef) {
+        setTrackingOrderId(orderRef);
+      } else if (orderTrackingId) {
+        setTrackingOrderId(orderTrackingId);
+      }
+      if (orderTrackingId) {
+        dbService.updateOrderPaymentStatus(orderRef || orderTrackingId, 'paid');
+      }
+    }
   }, []);
 
   // Filter products by Category, Seller, Search Query, and Express status

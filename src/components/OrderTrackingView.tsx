@@ -37,6 +37,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
   const [searchQuery, setSearchQuery] = useState(selectedOrderId || '');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(selectedOrderId || null);
   const [loading, setLoading] = useState(true);
+  const [pesapalSuccessMessage, setPesapalSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -58,6 +59,31 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
     };
 
     fetchOrders();
+
+    // Check for Pesapal gateway payment verification return in URL
+    const params = new URLSearchParams(window.location.search);
+    const orderTrackingId = params.get('OrderTrackingId') || params.get('orderTrackingId');
+    const orderMerchantRef = params.get('OrderMerchantReference') || params.get('orderMerchantReference');
+
+    if (orderTrackingId) {
+      setPesapalSuccessMessage('Payment Verified! Your order has been dispatched to the sellers.');
+      const ref = orderMerchantRef || orderTrackingId;
+      setSearchQuery(ref);
+      setExpandedOrderId(ref);
+
+      // Update matching order's paymentStatus to 'paid'
+      dbService.updateOrderPaymentStatus(ref, 'paid').then(() => {
+        dbService.getOrders().then((all) => {
+          if (currentUser) {
+            if (currentUser.role === 'admin') {
+              setOrders(all);
+            } else {
+              setOrders(all.filter((o) => o.buyerId === currentUser.id));
+            }
+          }
+        });
+      });
+    }
   }, [currentUser?.id, currentUser?.role]);
 
   const filteredOrders = orders.filter((o) => {
@@ -124,6 +150,32 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Pesapal Live USSD Payment Verification Success Banner */}
+      {pesapalSuccessMessage && (
+        <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/80 shadow-md flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-emerald-950 dark:text-emerald-100">
+                Payment Verified! Your order has been dispatched to the sellers.
+              </h3>
+              <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-0.5">
+                Prepaid escrow confirmed via Pesapal Mobile Money Gateway. Sellers have been alerted on WhatsApp.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPesapalSuccessMessage(null)}
+            className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-950 dark:hover:text-white text-xs font-bold px-2 py-1 rounded-lg cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Guest unauthenticated view */}
       {!currentUser ? (

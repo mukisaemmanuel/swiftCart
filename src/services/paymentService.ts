@@ -121,6 +121,7 @@ export interface PesapalInitiationRequest {
   customerPhone: string;
   customerName: string;
   customerEmail?: string;
+  appUrl?: string;
 }
 
 export interface PesapalInitiationResponse {
@@ -144,10 +145,14 @@ class PaymentService {
 
   async initiatePesapalPayment(req: PesapalInitiationRequest): Promise<PesapalInitiationResponse> {
     try {
+      const payload = {
+        ...req,
+        appUrl: req.appUrl || (typeof window !== 'undefined' ? window.location.origin : undefined),
+      };
       const res = await fetch('/api/payments/pesapal/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

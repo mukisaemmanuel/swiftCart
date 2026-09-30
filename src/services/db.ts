@@ -732,7 +732,8 @@ class DatabaseService {
   async updateOrderStatus(
     orderId: string,
     status: Order['status'],
-    note?: string
+    note?: string,
+    paymentStatus?: PaymentStatus
   ): Promise<Order | null> {
     const orders = await this.getOrders();
     const orderIndex = orders.findIndex((o) => o.id === orderId);
@@ -752,6 +753,7 @@ class DatabaseService {
     const updatedOrder: Order = {
       ...currentOrder,
       status,
+      ...(paymentStatus ? { paymentStatus } : {}),
       trackingHistory,
       updatedAt: now,
     };
@@ -759,6 +761,7 @@ class DatabaseService {
     try {
       await updateDoc(doc(db, 'orders', orderId), {
         status,
+        ...(paymentStatus ? { paymentStatus } : {}),
         trackingHistory,
         updatedAt: now,
       });
@@ -784,6 +787,41 @@ class DatabaseService {
     });
 
     return updatedOrder;
+  }
+
+  async updateOrderPaymentStatus(
+    referenceOrId: string,
+    paymentStatus: PaymentStatus = 'paid'
+  ): Promise<number> {
+    const orders = await this.getOrders();
+    let updatedCount = 0;
+    const now = new Date().toISOString();
+
+    for (let i = 0; i < orders.length; i++) {
+      const o = orders[i];
+      if (
+        o.id === referenceOrId ||
+        o.masterOrderId === referenceOrId ||
+        o.paymentReference === referenceOrId
+      ) {
+        o.paymentStatus = paymentStatus;
+        o.updatedAt = now;
+        try {
+          await updateDoc(doc(db, 'orders', o.id), {
+            paymentStatus,
+            updatedAt: now,
+          });
+        } catch {
+          // localStorage fallback
+        }
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      localStorage.setItem(LS_ORDERS_KEY, JSON.stringify(orders));
+    }
+    return updatedCount;
   }
 }
 

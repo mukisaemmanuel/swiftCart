@@ -40,12 +40,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const { items, sellerPackages, totalProductsAmountUGX, totalDeliveryFeeUGX, grandTotalUGX, clearCart } = useCart();
   const { currentUser } = useAuth();
 
-  // Step state: 'details' | 'pesapal_gateway' | 'momo_ussd_prompt' | 'success'
-  const [step, setStep] = useState<'details' | 'pesapal_gateway' | 'momo_ussd_prompt' | 'success'>('details');
-
-  // Pesapal v3 gateway state
-  const [pesapalRedirectUrl, setPesapalRedirectUrl] = useState<string | null>(null);
-  const [pesapalTrackingId, setPesapalTrackingId] = useState<string | null>(null);
+  // Step state: 'details' | 'success'
+  const [step, setStep] = useState<'details' | 'success'>('details');
 
   // Address
   const [fullName, setFullName] = useState(currentUser?.name || '');
@@ -80,10 +76,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [currentUser]);
 
-  // USSD & Processing state
+  // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
-  const [simulatedTxId, setSimulatedTxId] = useState('');
-  const [simulatedPin, setSimulatedPin] = useState('');
   const [createdOrders, setCreatedOrders] = useState<Order[]>([]);
   const [createdMasterId, setCreatedMasterId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -179,14 +173,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    // 100% Prepaid Mobile Money Flow - Enforce Prepaid Escrow via MTN MoMo / Airtel Money / Pesapal
+    // Direct Live Pesapal v3 Mobile Money USSD Gateway
     setIsProcessing(true);
-    const tempRef = `SWIFT-${Date.now().toString().slice(-6)}`;
+    setErrorMessage(null);
+    const generatedMasterId = `SWIFT-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
-    // 1. Attempt real Pesapal v3 API checkout first
     try {
       const pesapalRes = await paymentService.initiatePesapalPayment({
-        orderId: tempRef,
+        orderId: generatedMasterId,
         amountUGX: grandTotalUGX,
         customerPhone: momoPhone,
         customerName: fullName,
@@ -194,118 +188,46 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
 
       if (pesapalRes.success && pesapalRes.redirect_url) {
-        setPesapalRedirectUrl(pesapalRes.redirect_url);
-        setPesapalTrackingId(pesapalRes.order_tracking_id || tempRef);
-        setSimulatedTxId(pesapalRes.order_tracking_id || tempRef);
-        setIsProcessing(false);
-        setStep('pesapal_gateway');
+        // Save pending split orders into database with paymentStatus: 'pending'
+        const deliveryAddress: DeliveryAddress = {
+          fullName,
+          phone,
+          district,
+          divisionOrTown: division,
+          streetAddress,
+          notes,
+          ...(gpsCoordinates ? { gpsCoordinates } : {}),
+        };
+
+        const { masterOrderId, subOrders } = await dbService.createSplitOrders({
+          buyer: currentUser,
+          deliveryAddress,
+          cartItems: items,
+          paymentMethod: 'mobile_money',
+          paymentProvider,
+          paymentPhone: momoPhone,
+          paymentReference: pesapalRes.order_tracking_id || generatedMasterId,
+          paymentStatus: 'pending',
+        });
+
+        clearCart();
+        setCreatedMasterId(masterOrderId);
+        setCreatedOrders(subOrders);
+
+        // Redirect directly to the live Pesapal gateway for native handset USSD push
+        window.location.href = pesapalRes.redirect_url;
         return;
+      } else {
+        setIsProcessing(false);
+        setErrorMessage(
+          pesapalRes.error ||
+          'Payment gateway connection error. Please try again or check phone number.'
+        );
       }
     } catch (pesapalErr) {
-      console.warn('Pesapal initiation note (falling back to simulator):', pesapalErr);
-    }
-
-    // 2. Safe fallback to local USSD PIN simulator if Pesapal credentials/gateway are offline
-    try {
-      const initRes = await paymentService.initiateMobileMoney({
-        orderReference: tempRef,
-        amountUGX: grandTotalUGX,
-        customerPhone: momoPhone,
-        customerName: fullName,
-        provider: paymentProvider,
-      });
-
-      setSimulatedTxId(initRes.transactionId);
+      console.error('Pesapal initiation error:', pesapalErr);
       setIsProcessing(false);
-      setStep('momo_ussd_prompt');
-    } catch (err) {
-      setIsProcessing(false);
-      setErrorMessage('Could not initiate Mobile Money session. Please check your phone number.');
-    }
-  };
-
-  const handleConfirmPesapalPayment = async () => {
-    if (!currentUser) return;
-    setIsProcessing(true);
-
-    try {
-      if (pesapalTrackingId) {
-        try {
-          await paymentService.checkPesapalStatus(pesapalTrackingId);
-        } catch {
-          // Non-blocking status check
-        }
-      }
-
-      const deliveryAddress: DeliveryAddress = {
-        fullName,
-        phone,
-        district,
-        divisionOrTown: division,
-        streetAddress,
-        notes,
-        ...(gpsCoordinates ? { gpsCoordinates } : {}),
-      };
-
-      const { masterOrderId, subOrders } = await dbService.createSplitOrders({
-        buyer: currentUser,
-        deliveryAddress,
-        cartItems: items,
-        paymentMethod: 'mobile_money',
-        paymentProvider,
-        paymentPhone: momoPhone,
-        paymentReference: pesapalTrackingId || simulatedTxId,
-        paymentStatus: 'paid',
-      });
-
-      clearCart();
-      setCreatedMasterId(masterOrderId);
-      setCreatedOrders(subOrders);
-      setIsProcessing(false);
-      setStep('success');
-    } catch {
-      setIsProcessing(false);
-      setErrorMessage('Failed to finalize order. Please try again.');
-    }
-  };
-
-  const handleConfirmMomoPIN = async () => {
-    if (!currentUser) return;
-    setIsProcessing(true);
-
-    try {
-      // Simulate network verification
-      await paymentService.simulatePinEntryApproval(simulatedTxId);
-
-      const deliveryAddress: DeliveryAddress = {
-        fullName,
-        phone,
-        district,
-        divisionOrTown: division,
-        streetAddress,
-        notes,
-        ...(gpsCoordinates ? { gpsCoordinates } : {}),
-      };
-
-      const { masterOrderId, subOrders } = await dbService.createSplitOrders({
-        buyer: currentUser,
-        deliveryAddress,
-        cartItems: items,
-        paymentMethod: 'mobile_money',
-        paymentProvider,
-        paymentPhone: momoPhone,
-        paymentReference: simulatedTxId,
-        paymentStatus: 'paid',
-      });
-
-      clearCart();
-      setCreatedMasterId(masterOrderId);
-      setCreatedOrders(subOrders);
-      setIsProcessing(false);
-      setStep('success');
-    } catch {
-      setIsProcessing(false);
-      setErrorMessage('PIN verification failed. Try again.');
+      setErrorMessage('Payment gateway connection error. Please try again or check phone number.');
     }
   };
 
@@ -321,10 +243,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <h3 className="text-xl font-extrabold mt-1">
               {step === 'success'
                 ? 'Order Confirmed!'
-                : step === 'pesapal_gateway'
-                ? 'Pesapal v3 Payment Gateway'
-                : step === 'momo_ussd_prompt'
-                ? 'Authorize Mobile Money Payment'
                 : 'Delivery & Payment Details'}
             </h3>
           </div>
@@ -650,7 +568,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing Order...</span>
+                    <span>Connecting to Pesapal USSD Gateway...</span>
                   </>
                 ) : (
                   <>
@@ -660,175 +578,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
               </button>
             </form>
-          )}
-
-          {/* Step: Pesapal v3 Embedded Gateway */}
-          {step === 'pesapal_gateway' && (
-            <div className="space-y-4 py-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800 rounded-2xl">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/60 px-2.5 py-0.5 rounded-full border border-orange-300 dark:border-orange-700">
-                      Pesapal v3 Secure Checkout
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      Tracking ID: <strong className="font-mono text-slate-800 dark:text-slate-200">{pesapalTrackingId}</strong>
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                    Select MTN MoMo or Airtel Money to receive the instant push on your phone.
-                  </p>
-                </div>
-                <div className="text-left sm:text-right sm:shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-orange-200 dark:border-orange-800">
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Amount Due</div>
-                  <div className="text-base font-black text-orange-600 dark:text-orange-400">
-                    {formatUGX(grandTotalUGX)}
-                  </div>
-                </div>
-              </div>
-
-              {pesapalRedirectUrl ? (
-                <div className="relative w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white shadow-inner">
-                  <iframe
-                    src={pesapalRedirectUrl}
-                    title="Pesapal Secure Payment Gateway"
-                    className="w-full h-[520px] border-0"
-                    allow="payment *"
-                    sandbox="allow-forms allow-modals allow-popups-to-escape-sandbox allow-popups allow-scripts allow-same-origin allow-top-navigation"
-                  />
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <Loader2 className="w-8 h-8 animate-spin text-orange-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">Connecting to Pesapal Payment Gateway...</p>
-                </div>
-              )}
-
-              {/* Action Buttons & Fallback Controls */}
-              <div className="space-y-3 pt-1">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {pesapalRedirectUrl && (
-                    <a
-                      href={pesapalRedirectUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                    >
-                      <ExternalLink className="w-4 h-4 text-slate-500" />
-                      <span>Open Gateway in New Tab</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleConfirmPesapalPayment}
-                    disabled={isProcessing}
-                    className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Verifying with Pesapal...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>I Have Completed Payment</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs pt-1 px-1">
-                  <button
-                    type="button"
-                    onClick={() => setStep('details')}
-                    className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 underline cursor-pointer"
-                  >
-                    ← Back to Order Details
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStep('momo_ussd_prompt')}
-                    className="text-orange-600 hover:text-orange-700 dark:text-orange-400 font-semibold underline cursor-pointer"
-                  >
-                    Trouble with gateway? Switch to Instant PIN Simulator
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step: Mobile Money USSD Prompt Simulation */}
-          {step === 'momo_ussd_prompt' && (
-            <div className="py-4 space-y-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 mx-auto flex items-center justify-center">
-                <Smartphone className="w-8 h-8" />
-              </div>
-
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
-                  {paymentProvider === 'mtn_momo' ? 'MTN MoMo Sandbox Gateway' : 'Airtel Money Sandbox'}
-                </span>
-                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white mt-2">
-                  Authorize Payment on Handset
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                  A USSD Push request for <strong>{formatUGX(grandTotalUGX)}</strong> was sent to{' '}
-                  <strong>{momoPhone}</strong>.
-                </p>
-              </div>
-
-              {/* Handset Mock Dialog */}
-              <div className="max-w-xs mx-auto bg-slate-900 text-white p-5 rounded-2xl shadow-xl border-4 border-slate-700 text-left space-y-3 font-mono text-xs">
-                <div className="text-[10px] text-amber-400 font-bold border-b border-slate-800 pb-1">
-                  {paymentProvider === 'mtn_momo' ? 'MTN MOBILE MONEY (UG)' : 'AIRTEL MONEY (UG)'}
-                </div>
-                <p className="text-slate-200">
-                  Approve payment of {formatUGX(grandTotalUGX)} to SWIFTCART UGANDA?
-                </p>
-                <p className="text-slate-400 text-[10px]">Ref: {simulatedTxId}</p>
-
-                <div className="pt-2">
-                  <label className="text-[10px] text-slate-300 block mb-1">Enter MoMo PIN:</label>
-                  <input
-                    type="password"
-                    maxLength={5}
-                    value={simulatedPin}
-                    onChange={(e) => setSimulatedPin(e.target.value)}
-                    placeholder="•••••"
-                    className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-center text-sm text-amber-400 tracking-widest focus:outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 max-w-xs mx-auto">
-                <button
-                  type="button"
-                  onClick={() => setStep('details')}
-                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmMomoPIN}
-                  disabled={isProcessing}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
-                >
-                  {isProcessing ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve PIN
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <p className="text-[11px] text-slate-400">
-                (Clicking 'Approve PIN' simulates the buyer confirming the prompt on their phone).
-              </p>
-            </div>
           )}
 
           {/* Step: Order Confirmation Success */}
