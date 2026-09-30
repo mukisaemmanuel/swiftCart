@@ -647,6 +647,10 @@ export const SEED_ORDERS: Order[] = [
       divisionOrTown: 'Nakawa Division',
       streetAddress: 'Plot 4, Lugogo Bypass',
       notes: 'Deliver to office reception',
+      gpsCoordinates: {
+        latitude: 0.3341,
+        longitude: 32.6052,
+      },
     },
     sellerId: 'seller_kampala_tech',
     sellerStoreName: 'Apex Tech Direct',

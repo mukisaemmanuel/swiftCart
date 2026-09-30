@@ -246,26 +246,26 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
     return entries.sort((a, b) => b.value - a.value);
   }, [filteredOrders, products]);
 
-  // Payment method breakdown
+  // Payment provider breakdown (MTN MoMo vs Airtel Money)
   const paymentBreakdown = useMemo(() => {
-    let momoCount = 0;
-    let momoAmount = 0;
-    let codCount = 0;
-    let codAmount = 0;
+    let mtnCount = 0;
+    let mtnAmount = 0;
+    let airtelCount = 0;
+    let airtelAmount = 0;
 
     filteredOrders.forEach((o) => {
-      if (o.paymentMethod === 'mobile_money') {
-        momoCount += 1;
-        momoAmount += o.totalUGX;
+      if (o.paymentProvider === 'airtel_money') {
+        airtelCount += 1;
+        airtelAmount += o.totalUGX;
       } else {
-        codCount += 1;
-        codAmount += o.totalUGX;
+        mtnCount += 1;
+        mtnAmount += o.totalUGX;
       }
     });
 
     return [
-      { name: 'MTN/Airtel MoMo', count: momoCount, amount: momoAmount, color: '#f59e0b' },
-      { name: 'Cash on Delivery', count: codCount, amount: codAmount, color: '#10b981' },
+      { name: 'MTN Mobile Money (MoMo)', count: mtnCount, amount: mtnAmount, color: '#f59e0b' },
+      { name: 'Airtel Money', count: airtelCount, amount: airtelAmount, color: '#ef4444' },
     ];
   }, [filteredOrders]);
 
@@ -848,13 +848,13 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
           </div>
         </div>
 
-        {/* Payment Channels (MoMo vs COD) */}
+        {/* Payment Channels (MTN MoMo vs Airtel Money) */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
             <CreditCard className="w-4 h-4 text-amber-600" /> Payment Channels (Uganda)
           </h3>
           <p className="text-xs text-slate-500 mb-4">
-            Mobile Money (MTN & Airtel) vs Cash on Delivery settlements
+            100% Prepaid Escrow: MTN MoMo vs Airtel Money settlements
           </p>
 
           <div className="space-y-4">

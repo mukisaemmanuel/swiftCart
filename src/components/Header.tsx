@@ -163,50 +163,55 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* Seller link */}
-            {currentUser?.role === 'seller' ? (
+            {/* Prominent Seller Center Button */}
+            {currentUser?.role === 'seller' && (
               <button
                 onClick={() => onNavigate('seller')}
-                className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                   currentView === 'seller'
-                    ? 'bg-orange-600 text-white shadow-sm'
-                    : 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/40 border border-orange-200 dark:border-orange-800'
+                    ? 'bg-orange-600 text-white shadow-md ring-2 ring-orange-400'
+                    : 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/60 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 shadow-2xs'
                 }`}
+                title="Go to Seller Center"
               >
                 <Store className="w-4 h-4" />
                 <span>Seller Center</span>
                 {currentSeller?.status === 'pending' && (
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Store verification pending"></span>
                 )}
               </button>
-            ) : (
+            )}
+
+            {/* Prominent Admin Oversight Button */}
+            {currentUser?.role === 'admin' && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  currentView === 'admin'
+                    ? 'bg-purple-700 text-white shadow-md ring-2 ring-purple-400'
+                    : 'bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/80 dark:hover:bg-purple-900/80 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700 shadow-2xs'
+                }`}
+                title="SwiftCart Admin Management"
+              >
+                <Shield className="w-4 h-4" />
+                <span>Admin</span>
+              </button>
+            )}
+
+            {/* Non-merchant / Non-admin Sell CTA */}
+            {(!currentUser || (currentUser.role !== 'seller' && currentUser.role !== 'admin')) && (
               <button
                 onClick={() => {
-                  if (!currentUser || currentUser.role !== 'seller') {
+                  if (!currentUser) {
                     onOpenAuth();
                   } else {
                     onNavigate('seller');
                   }
                 }}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800 transition-colors"
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800 transition-colors cursor-pointer"
               >
                 <Store className="w-4 h-4" />
                 <span>Sell on SwiftCart</span>
-              </button>
-            )}
-
-            {/* Admin link */}
-            {currentUser?.role === 'admin' && (
-              <button
-                onClick={() => onNavigate('admin')}
-                className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                  currentView === 'admin'
-                    ? 'bg-purple-700 text-white'
-                    : 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800'
-                }`}
-              >
-                <Shield className="w-4 h-4" />
-                <span>Admin</span>
               </button>
             )}
 

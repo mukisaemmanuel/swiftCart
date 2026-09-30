@@ -169,11 +169,11 @@ function MarketplaceApp() {
 
               <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <Truck className="w-5 h-5" />
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">MoMo & Cash</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">MTN, Airtel & COD</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Instant MoMo Escrow</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Instant MoMo Escrow (MTN & Airtel)</p>
                 </div>
               </div>
 
@@ -404,7 +404,7 @@ function MarketplaceApp() {
             <ul className="space-y-1.5 text-slate-400">
               <li>• MTN Mobile Money (MoMo)</li>
               <li>• Airtel Money</li>
-              <li>• Cash on Delivery (COD in major towns)</li>
+              <li>• Instant MoMo Escrow (MTN & Airtel)</li>
               <li>• Instant USSD Push API</li>
             </ul>
           </div>
@@ -517,11 +517,29 @@ function MarketplaceApp() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         defaultRole={authDefaultRole}
+        onAuthSuccess={(role) => {
+          if (role === 'seller') {
+            setCurrentView('seller');
+          } else if (role === 'admin') {
+            setCurrentView('admin');
+          } else {
+            setCurrentView('storefront');
+          }
+        }}
       />
 
       <DemoSwitcherModal
         isOpen={isDemoSwitcherOpen}
         onClose={() => setIsDemoSwitcherOpen(false)}
+        onSelectRole={(role) => {
+          if (role === 'seller') {
+            setCurrentView('seller');
+          } else if (role === 'admin') {
+            setCurrentView('admin');
+          } else {
+            setCurrentView('storefront');
+          }
+        }}
       />
 
       <NotificationModal

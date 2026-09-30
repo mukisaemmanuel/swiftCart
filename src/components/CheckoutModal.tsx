@@ -13,7 +13,6 @@ import {
   Phone,
   Store,
   CreditCard,
-  Banknote,
   CheckCircle2,
   ShieldCheck,
   Smartphone,
@@ -22,6 +21,7 @@ import {
   Package,
   MessageCircle,
   Share2,
+  ExternalLink,
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -51,6 +51,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [streetAddress, setStreetAddress] = useState('Plot 14, Kampala Road');
   const [notes, setNotes] = useState('');
 
+  // GPS Geolocation state
+  const [gpsCoordinates, setGpsCoordinates] = useState<{
+    latitude: number;
+    longitude: number;
+    lat?: number;
+    lng?: number;
+  } | null>(null);
+  const [isFetchingGps, setIsFetchingGps] = useState(false);
+  const [gpsToast, setGpsToast] = useState<string | null>(null);
+  const [gpsSuccess, setGpsSuccess] = useState(false);
+
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('mobile_money');
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>('mtn_momo');
@@ -72,6 +83,61 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [createdOrders, setCreatedOrders] = useState<Order[]>([]);
   const [createdMasterId, setCreatedMasterId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleGetGpsLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setGpsToast('Could not retrieve GPS. Please type your nearest landmark.');
+      setTimeout(() => setGpsToast(null), 5000);
+      return;
+    }
+
+    setIsFetchingGps(true);
+    setGpsToast(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const coords = {
+          latitude: lat,
+          longitude: lng,
+          lat,
+          lng,
+        };
+
+        setGpsCoordinates(coords);
+        setIsFetchingGps(false);
+        setGpsSuccess(true);
+
+        const mapsLink = `https://maps.google.com/?q=${lat},${lng}`;
+
+        // Automatically append Google Maps link to notes
+        setNotes((prev) => {
+          if (prev && prev.includes(mapsLink)) return prev;
+          return prev ? `${prev} | GPS Pin: ${mapsLink}` : `GPS Pin: ${mapsLink}`;
+        });
+
+        // Update default street address if not already custom
+        setStreetAddress((prev) => {
+          if (!prev || prev === 'Plot 14, Kampala Road') {
+            return `Pinned GPS (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+          }
+          return prev;
+        });
+      },
+      (error) => {
+        console.warn('Geolocation capture failed:', error);
+        setIsFetchingGps(false);
+        setGpsToast('Could not retrieve GPS. Please type your nearest landmark.');
+        setTimeout(() => setGpsToast(null), 5000);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -101,48 +167,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       divisionOrTown: division,
       streetAddress,
       notes,
+      ...(gpsCoordinates ? { gpsCoordinates } : {}),
     };
 
-    if (paymentMethod === 'cod') {
-      // Direct Cash on Delivery placement
-      setIsProcessing(true);
-      try {
-        const { masterOrderId, subOrders } = await dbService.createSplitOrders({
-          buyer: currentUser,
-          deliveryAddress,
-          cartItems: items,
-          paymentMethod: 'cod',
-          paymentStatus: 'pay_on_delivery',
-        });
-        clearCart();
-        setCreatedMasterId(masterOrderId);
-        setCreatedOrders(subOrders);
-        setIsProcessing(false);
-        setStep('success');
-      } catch (err) {
-        setIsProcessing(false);
-        setErrorMessage('Failed to place order. Please try again.');
-      }
-    } else {
-      // Mobile Money Flow
-      setIsProcessing(true);
-      try {
-        const tempRef = `SWIFT-${Date.now().toString().slice(-6)}`;
-        const initRes = await paymentService.initiateMobileMoney({
-          orderReference: tempRef,
-          amountUGX: grandTotalUGX,
-          customerPhone: momoPhone,
-          customerName: fullName,
-          provider: paymentProvider,
-        });
+    if (!momoPhone || momoPhone.trim().length < 9) {
+      setErrorMessage('Please enter a valid Mobile Money phone number (e.g. 0772 123456 or 0701 445566).');
+      return;
+    }
 
-        setSimulatedTxId(initRes.transactionId);
-        setIsProcessing(false);
-        setStep('momo_ussd_prompt');
-      } catch (err) {
-        setIsProcessing(false);
-        setErrorMessage('Could not initiate Mobile Money session. Check phone number.');
-      }
+    // 100% Prepaid Mobile Money Flow - Enforce Prepaid Escrow via MTN MoMo / Airtel Money
+    setIsProcessing(true);
+    try {
+      const tempRef = `SWIFT-${Date.now().toString().slice(-6)}`;
+      const initRes = await paymentService.initiateMobileMoney({
+        orderReference: tempRef,
+        amountUGX: grandTotalUGX,
+        customerPhone: momoPhone,
+        customerName: fullName,
+        provider: paymentProvider,
+      });
+
+      setSimulatedTxId(initRes.transactionId);
+      setIsProcessing(false);
+      setStep('momo_ussd_prompt');
+    } catch (err) {
+      setIsProcessing(false);
+      setErrorMessage('Could not initiate Mobile Money session. Please check your phone number.');
     }
   };
 
@@ -161,6 +211,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         divisionOrTown: division,
         streetAddress,
         notes,
+        ...(gpsCoordinates ? { gpsCoordinates } : {}),
       };
 
       const { masterOrderId, subOrders } = await dbService.createSplitOrders({
@@ -355,10 +406,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Street Address / House / Landmark *
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Street Address / House / Landmark *
+                    </label>
+
+                    {/* Styled Pin My Current GPS Location Button */}
+                    <button
+                      type="button"
+                      onClick={handleGetGpsLocation}
+                      disabled={isFetchingGps}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-xs ${
+                        gpsSuccess
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                          : 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 dark:hover:bg-orange-900/60 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 active:scale-95'
+                      } disabled:opacity-60 cursor-pointer`}
+                      title="Capture device GPS for exact courier navigation"
+                    >
+                      {isFetchingGps ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600 dark:text-orange-400" />
+                          <span>Fetching GPS coordinates...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📍</span>
+                          <span>Use My Current Location (GPS)</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                   <input
                     type="text"
                     required
@@ -367,136 +446,109 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     placeholder="e.g. Plot 15, Near Total Petrol Station, Bukoto"
                     className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-800"
                   />
+
+                  {/* Green confirmation badge when GPS location is pinned */}
+                  {gpsSuccess && gpsCoordinates && (
+                    <div className="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs">
+                      <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 font-bold">
+                        <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">
+                          ✓
+                        </span>
+                        <span>Exact GPS Location Pinned</span>
+                        <span className="text-[11px] font-normal text-emerald-700 dark:text-emerald-300">
+                          ({gpsCoordinates.latitude.toFixed(5)}, {gpsCoordinates.longitude.toFixed(5)})
+                        </span>
+                      </div>
+                      <a
+                        href={`https://maps.google.com/?q=${gpsCoordinates.latitude},${gpsCoordinates.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
+                      >
+                        Preview Pin ↗
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Delivery Notes / Nearest Landmark */}
+                  <div className="pt-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Delivery Notes / Nearest Landmark
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="e.g. Black gate opposite supermarket, call rider upon arrival"
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Payment Method Selector */}
+              {/* Payment Method Selector - 100% Prepaid Mobile Money */}
               <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-orange-600 dark:text-orange-400" /> Select Payment Method
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Option 1: Mobile Money */}
-                  <label
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                      paymentMethod === 'mobile_money'
-                        ? 'border-orange-600 bg-orange-50/50 dark:bg-orange-950/40 ring-2 ring-orange-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                        <div>
-                          <span className="text-xs font-extrabold text-slate-900 dark:text-white block">
-                            Mobile Money
-                          </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                            MTN MoMo & Airtel Money
-                          </span>
-                        </div>
-                      </div>
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === 'mobile_money'}
-                        onChange={() => setPaymentMethod('mobile_money')}
-                        className="accent-orange-600"
-                      />
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                        MTN MoMo
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-900 dark:text-red-300 border border-red-200 dark:border-red-800">
-                        Airtel Money
-                      </span>
-                    </div>
-                  </label>
-
-                  {/* Option 2: Cash on Delivery */}
-                  <label
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                      paymentMethod === 'cod'
-                        ? 'border-orange-600 bg-orange-50/50 dark:bg-orange-950/40 ring-2 ring-orange-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                        <div>
-                          <span className="text-xs font-extrabold text-slate-900 dark:text-white block">
-                            Cash on Delivery (COD)
-                          </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Pay upon doorstep delivery
-                          </span>
-                        </div>
-                      </div>
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === 'cod'}
-                        onChange={() => setPaymentMethod('cod')}
-                        className="accent-orange-600"
-                      />
-                    </div>
-                    <p className="mt-3 text-[10px] text-slate-500 dark:text-slate-400">
-                      Available for all deliveries in Busia, Busitema, Jinja, Iganga and Eastern routes.
-                    </p>
-                  </label>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-orange-600 dark:text-orange-400" /> Prepaid Mobile Money Payment
+                  </h4>
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1 w-fit">
+                    <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>100% Secure Prepaid Escrow via MTN MoMo & Airtel Money</span>
+                  </span>
                 </div>
 
-                {/* Mobile Money Details when selected */}
-                {paymentMethod === 'mobile_money' && (
-                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3 animate-in fade-in">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Select Telecom Network:
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentProvider('mtn_momo')}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                            paymentProvider === 'mtn_momo'
-                              ? 'border-amber-500 bg-amber-500 text-slate-950 font-black shadow-xs'
-                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          🟡 MTN MoMo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentProvider('airtel_money')}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                            paymentProvider === 'airtel_money'
-                              ? 'border-red-600 bg-red-600 text-white font-black shadow-xs'
-                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          🔴 Airtel Money
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Mobile Money Number (To receive USSD PIN Prompt):
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={momoPhone}
-                        onChange={(e) => setMomoPhone(e.target.value)}
-                        placeholder="0772 123456 or 0701 445566"
-                        className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
-                      />
+                <div className="p-4 bg-orange-50/40 dark:bg-slate-800/60 border border-orange-200/80 dark:border-slate-700 rounded-2xl space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Select Telecom Network *
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentProvider('mtn_momo')}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          paymentProvider === 'mtn_momo'
+                            ? 'border-amber-500 bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-400/30'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-amber-400'
+                        }`}
+                      >
+                        <span className="text-base">🟡</span>
+                        <span>MTN MoMo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentProvider('airtel_money')}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          paymentProvider === 'airtel_money'
+                            ? 'border-red-600 bg-red-600 text-white font-black shadow-xs ring-2 ring-red-400/30'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-red-400'
+                        }`}
+                      >
+                        <span className="text-base">🔴</span>
+                        <span>Airtel Money</span>
+                      </button>
                     </div>
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Mobile Money Number (To receive USSD PIN Prompt) *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={momoPhone}
+                      onChange={(e) => setMomoPhone(e.target.value)}
+                      placeholder="e.g. 0772 123456 or 0701 445566"
+                      className="w-full px-3 py-2 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
+                    />
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>100% Secure Prepaid Escrow via MTN MoMo & Airtel Money</span>
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Price Breakdown */}
@@ -663,12 +715,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       ord.buyerPhone || ord.deliveryAddress.phone
                     );
 
+                    const coords = ord.deliveryAddress.gpsCoordinates;
+                    const lat = coords ? (coords.latitude ?? coords.lat) : undefined;
+                    const lng = coords ? (coords.longitude ?? coords.lng) : undefined;
+                    const gpsPinText = (lat !== undefined && lng !== undefined)
+                      ? ` Delivery Pin: https://maps.google.com/?q=${lat},${lng}`
+                      : '';
+
                     // Formatted WhatsApp message for seller
-                    const sellerText = `Hello ${ord.sellerStoreName}, I have placed order *${ord.id}* for ${itemsSummary}. Total: UGX ${ord.totalUGX.toLocaleString()}. Delivery to: ${addressStr}.`;
+                    const sellerText = `Hello ${ord.sellerStoreName}, I have placed order *${ord.id}* for ${itemsSummary}. Total: UGX ${ord.totalUGX.toLocaleString()}. Delivery to: ${addressStr}.${gpsPinText}`;
                     const sellerWhatsAppUrl = `https://wa.me/${cleanSellerPhone}?text=${encodeURIComponent(sellerText)}`;
 
                     // Formatted WhatsApp message for customer receipt
-                    const buyerReceiptText = `Hello ${ord.buyerName}, your SwiftCart Uganda order receipt for package *${ord.id}* (${ord.sellerStoreName}): Total: UGX ${ord.totalUGX.toLocaleString()}. Destination: ${addressStr}. Payment: ${ord.paymentMethod.toUpperCase()} (${ord.paymentStatus}). Track your order live on SwiftCart.`;
+                    const buyerReceiptText = `Hello ${ord.buyerName}, your SwiftCart Uganda order receipt for package *${ord.id}* (${ord.sellerStoreName}): Total: UGX ${ord.totalUGX.toLocaleString()}. Destination: ${addressStr}.${gpsPinText} Payment: ${ord.paymentMethod.toUpperCase()} (${ord.paymentStatus}). Track your order live on SwiftCart.`;
                     const buyerReceiptUrl = `https://wa.me/${cleanBuyerPhone}?text=${encodeURIComponent(buyerReceiptText)}`;
 
                     return (
@@ -697,6 +756,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             </span>
                           </div>
                         </div>
+
+                        {/* GPS pin preview if available */}
+                        {lat !== undefined && lng !== undefined && (
+                          <div className="flex items-center justify-between p-2 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-100 dark:border-emerald-800 text-[11px]">
+                            <span className="text-emerald-800 dark:text-emerald-200 font-semibold flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-emerald-600" />
+                              GPS Delivery Pin Attached
+                            </span>
+                            <a
+                              href={`https://maps.google.com/?q=${lat},${lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-700 dark:text-emerald-300 font-bold hover:underline flex items-center gap-0.5"
+                            >
+                              <span>Open Map</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          </div>
+                        )}
 
                         {/* WhatsApp Action Buttons */}
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-2">
@@ -743,6 +821,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Non-blocking GPS error toast */}
+        {gpsToast && (
+          <div className="fixed bottom-6 right-6 z-50 max-w-sm p-3.5 bg-slate-900/95 dark:bg-slate-100/95 text-white dark:text-slate-900 text-xs font-semibold rounded-2xl shadow-xl border border-slate-700 dark:border-slate-300 backdrop-blur-md flex items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 dark:text-amber-600 text-sm">📍</span>
+              <span>{gpsToast}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGpsToast(null)}
+              className="text-slate-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-900 text-xs px-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

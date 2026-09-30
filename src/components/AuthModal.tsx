@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { dbService } from '../services/db';
 import { UGANDA_DISTRICTS } from '../data/seedData';
+import { UserRole } from '../types';
 import { X, Lock, Mail, Phone, User as UserIcon, Store, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -8,6 +10,7 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode?: 'login' | 'register';
   defaultRole?: 'buyer' | 'seller';
+  onAuthSuccess?: (role: UserRole) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -15,6 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'login',
   defaultRole = 'buyer',
+  onAuthSuccess,
 }) => {
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
@@ -46,6 +50,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSubmitting(false);
 
     if (res.success) {
+      const users = await dbService.getUsers();
+      const cleanSearch = emailOrPhone.trim().toLowerCase();
+      const activeId = localStorage.getItem('swiftcart_active_user_id');
+      const foundUser = users.find(
+        (u) =>
+          (activeId && u.id === activeId) ||
+          u.email.toLowerCase() === cleanSearch ||
+          u.phone.replace(/[\s+-]/g, '') === cleanSearch.replace(/[\s+-]/g, '')
+      );
+      if (foundUser && onAuthSuccess) {
+        onAuthSuccess(foundUser.role);
+      } else if (onAuthSuccess) {
+        onAuthSuccess('buyer');
+      }
       onClose();
     } else {
       setErrorMsg(res.message || 'Login failed. Please check your credentials.');
@@ -77,14 +95,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setSubmitting(false);
     if (res.success) {
-      setSuccessMsg(
-        role === 'seller'
-          ? 'Seller registered successfully! Please proceed to verify your phone number.'
-          : 'Account created successfully! Welcome to SwiftCart.'
-      );
-      setTimeout(() => {
-        onClose();
-      }, 1200);
+      if (onAuthSuccess) {
+        onAuthSuccess(role);
+      }
+      onClose();
     } else {
       setErrorMsg(res.message || 'Registration failed.');
     }

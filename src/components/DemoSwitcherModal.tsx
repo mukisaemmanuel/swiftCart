@@ -1,17 +1,21 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { SEED_USERS } from '../data/seedData';
-import { X, UserCheck, Shield, ShoppingBag, Store } from 'lucide-react';
+import { X, UserCheck, ShoppingBag, Store } from 'lucide-react';
+import { UserRole } from '../types';
 
 interface DemoSwitcherModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectRole?: (role: UserRole) => void;
 }
 
-export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, onClose }) => {
+export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, onClose, onSelectRole }) => {
   const { currentUser, switchUser, isLiveAuth } = useAuth();
 
   if (!isOpen) return null;
+
+  const demoUsers = SEED_USERS.filter((user) => user.role !== 'admin');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -23,7 +27,7 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
             </span>
             <h3 className="text-lg font-bold mt-1">Switch Demo Account</h3>
             <p className="text-xs text-orange-100">
-              Test Buyer, Seller, and Admin workflows with 1-click
+              Test Buyer and Merchant workflows with 1-click
             </p>
           </div>
           <button
@@ -53,6 +57,7 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
           <button
             onClick={async () => {
               await switchUser('guest');
+              onSelectRole?.('buyer');
               onClose();
             }}
             className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between ${
@@ -83,17 +88,13 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
             </span>
           </button>
 
-          {SEED_USERS.map((user) => {
+          {demoUsers.map((user) => {
             const isActive = currentUser?.id === user.id;
             let roleBadge = 'Buyer';
             let roleColor = 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800';
             let icon = <ShoppingBag className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
 
-            if (user.role === 'admin') {
-              roleBadge = 'Admin';
-              roleColor = 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800';
-              icon = <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
-            } else if (user.role === 'seller') {
+            if (user.role === 'seller') {
               if (user.id === 'user_seller_pending') {
                 roleBadge = 'Seller (Pending)';
                 roleColor = 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800';
@@ -110,6 +111,7 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
                 key={user.id}
                 onClick={async () => {
                   await switchUser(user.id);
+                  onSelectRole?.(user.role);
                   onClose();
                 }}
                 className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between ${
@@ -154,7 +156,7 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
 
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-center">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Tip: Switch to <strong>SwiftCart Admin</strong> to approve/reject pending sellers, or <strong>David Mugisha</strong> to manage store orders.
+            Tip: Switch to <strong>David Mugisha</strong> to manage store orders, or <strong>Sarah Namukasa</strong> to test the buyer experience.
           </p>
         </div>
       </div>

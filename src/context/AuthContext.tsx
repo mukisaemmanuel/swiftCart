@@ -239,6 +239,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     localStorage.removeItem('swiftcart_is_live_auth');
+    localStorage.setItem('swiftcart_active_user_id', found.id);
+
+    // If found.role === 'seller', ensure currentSeller is loaded from dbService.getSellers() and assigned immediately.
+    if (found.role === 'seller') {
+      const sellers = await dbService.getSellers();
+      const matchedSeller = sellers.find((s) => s.userId === found.id || s.id === found.id) || null;
+      setCurrentSeller(matchedSeller);
+    } else {
+      setCurrentSeller(null);
+    }
+
+    // If found.role === 'admin', explicitly set currentUser with role: 'admin'
+    if (found.role === 'admin') {
+      setCurrentUser({ ...found, role: 'admin' });
+    } else {
+      setCurrentUser(found);
+    }
+
     await loadUserAndSeller(found.id, false);
     return { success: true };
   };

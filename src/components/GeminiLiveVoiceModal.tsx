@@ -442,7 +442,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
               {[
                 'Best laptops for Busitema University students?',
                 'How fast is delivery to Dabani Hospital or Customs?',
-                'Do you support MTN MoMo and Cash on Delivery?',
+                'How does the 100% Prepaid MoMo Escrow work?',
                 'Are there fresh fish packages from Majanji Port?',
               ].map((suggestion) => (
                 <button

@@ -220,7 +220,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Safe payments with MTN MoMo, Airtel Money or Cash on Delivery</span>
+                <span>Instant MoMo Escrow (MTN & Airtel)</span>
               </div>
             </div>
           )}

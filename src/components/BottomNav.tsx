@@ -8,6 +8,7 @@ import {
   Package,
   Store,
   ShoppingBag,
+  Shield,
 } from 'lucide-react';
 
 interface BottomNavProps {
@@ -55,22 +56,34 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </button>
 
-        {/* Sell / Seller Center */}
-        <button
-          onClick={() => {
-            if (currentUser?.role === 'seller') {
-              onNavigate('seller');
-            } else {
-              onOpenSellerRegistration();
-            }
-          }}
-          className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
-            currentView === 'seller' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <Store className="w-5 h-5 mb-0.5" />
-          <span>Sell</span>
-        </button>
+        {/* Sell / Seller Center / Admin */}
+        {currentUser?.role === 'admin' ? (
+          <button
+            onClick={() => onNavigate('admin')}
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
+              currentView === 'admin' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Shield className="w-5 h-5 mb-0.5" />
+            <span>Admin</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              if (currentUser?.role === 'seller') {
+                onNavigate('seller');
+              } else {
+                onOpenSellerRegistration();
+              }
+            }}
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
+              currentView === 'seller' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Store className="w-5 h-5 mb-0.5" />
+            <span>{currentUser?.role === 'seller' ? 'Seller' : 'Sell'}</span>
+          </button>
+        )}
 
         {/* Orders */}
         <button

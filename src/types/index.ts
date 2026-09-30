@@ -145,9 +145,9 @@ export interface SellerPackage {
 
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
 
-export type PaymentMethod = 'cod' | 'mobile_money';
+export type PaymentMethod = 'mobile_money';
 export type PaymentProvider = 'mtn_momo' | 'airtel_money';
-export type PaymentStatus = 'pending' | 'paid' | 'pay_on_delivery' | 'failed';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface DeliveryAddress {
   fullName: string;
@@ -156,6 +156,12 @@ export interface DeliveryAddress {
   divisionOrTown: string;
   streetAddress: string;
   notes?: string;
+  gpsCoordinates?: {
+    latitude: number;
+    longitude: number;
+    lat?: number;
+    lng?: number;
+  };
 }
 
 export interface OrderItem {

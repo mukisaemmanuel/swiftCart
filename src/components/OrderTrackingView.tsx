@@ -17,6 +17,7 @@ import {
   ChevronUp,
   MessageCircle,
   Share2,
+  ExternalLink,
 } from 'lucide-react';
 
 interface OrderTrackingViewProps {
@@ -241,7 +242,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         {formatUGX(order.totalUGX)}
                       </div>
                       <div className="text-[11px] text-slate-400 capitalize">
-                        {order.paymentMethod === 'cod' ? 'Cash on Delivery' : `${order.paymentProvider || 'Mobile Money'}`}
+                        {order.paymentProvider ? order.paymentProvider.replace('_', ' ') : 'Mobile Money'} ({order.paymentStatus})
                       </div>
                     </div>
                     {isExpanded ? (
@@ -365,14 +366,30 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                     {/* Delivery & Timeline details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                       <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div className="font-bold text-slate-800 dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" /> Delivery Address
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" /> Delivery Address
+                          </div>
+                          {order.deliveryAddress.gpsCoordinates && (
+                            <a
+                              href={`https://maps.google.com/?q=${order.deliveryAddress.gpsCoordinates.latitude ?? order.deliveryAddress.gpsCoordinates.lat},${order.deliveryAddress.gpsCoordinates.longitude ?? order.deliveryAddress.gpsCoordinates.lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                              title="Open pinned location on Google Maps"
+                            >
+                              <ExternalLink className="w-3 h-3" /> Pin on Maps
+                            </a>
+                          )}
                         </div>
                         <p className="text-slate-700 dark:text-slate-300 font-medium">{order.deliveryAddress.fullName}</p>
                         <p className="text-slate-500 dark:text-slate-400">{order.deliveryAddress.streetAddress}</p>
                         <p className="text-slate-500 dark:text-slate-400">
                           {order.deliveryAddress.divisionOrTown}, {order.deliveryAddress.district}
                         </p>
+                        {order.deliveryAddress.notes && (
+                          <p className="text-slate-500 dark:text-slate-400 italic text-[11px] mt-0.5">Notes: {order.deliveryAddress.notes}</p>
+                        )}
                         <p className="text-slate-500 dark:text-slate-400 mt-1">Tel: {order.deliveryAddress.phone}</p>
                       </div>
 
@@ -415,10 +432,17 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                         order.buyerPhone || order.deliveryAddress.phone
                       );
 
-                      const sellerMsg = `Hello ${order.sellerStoreName}, I have placed order *${order.id}* for ${itemsSummary}. Total: UGX ${order.totalUGX.toLocaleString()}. Delivery to: ${addressStr}.`;
+                      const coords = order.deliveryAddress.gpsCoordinates;
+                      const lat = coords ? (coords.latitude ?? coords.lat) : undefined;
+                      const lng = coords ? (coords.longitude ?? coords.lng) : undefined;
+                      const gpsPinText = (lat !== undefined && lng !== undefined)
+                        ? ` Delivery Pin: https://maps.google.com/?q=${lat},${lng}`
+                        : '';
+
+                      const sellerMsg = `Hello ${order.sellerStoreName}, I have placed order *${order.id}* for ${itemsSummary}. Total: UGX ${order.totalUGX.toLocaleString()}. Delivery to: ${addressStr}.${gpsPinText}`;
                       const sellerWhatsAppUrl = `https://wa.me/${cleanSellerPhone}?text=${encodeURIComponent(sellerMsg)}`;
 
-                      const buyerReceiptText = `Hello ${order.buyerName}, your SwiftCart Uganda order receipt for package *${order.id}* (${order.sellerStoreName}): Total: UGX ${order.totalUGX.toLocaleString()}. Destination: ${addressStr}. Payment: ${order.paymentMethod.toUpperCase()} (${order.paymentStatus}). Current status: ${order.status}.`;
+                      const buyerReceiptText = `Hello ${order.buyerName}, your SwiftCart Uganda order receipt for package *${order.id}* (${order.sellerStoreName}): Total: UGX ${order.totalUGX.toLocaleString()}. Destination: ${addressStr}.${gpsPinText} Payment: ${order.paymentMethod.toUpperCase()} (${order.paymentStatus}). Current status: ${order.status}.`;
                       const buyerReceiptUrl = `https://wa.me/${cleanBuyerPhone}?text=${encodeURIComponent(buyerReceiptText)}`;
 
                       return (

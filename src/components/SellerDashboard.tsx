@@ -29,48 +29,11 @@ import {
   Camera,
   Image as ImageIcon,
   Loader2,
+  MapPin,
+  ShieldAlert,
+  CreditCard,
 } from 'lucide-react';
-
-// Canvas Compression Helper for reliable image fallback
-const compressImageToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        const maxDim = 800;
-
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(e.target?.result as string);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-        resolve(dataUrl);
-      };
-      img.onerror = reject;
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
+import { compressImage } from '../utils/imageCompressor';
 
 // Asynchronous upload helper
 const uploadImageFile = async (file: File): Promise<string> => {
@@ -82,10 +45,10 @@ const uploadImageFile = async (file: File): Promise<string> => {
     return downloadUrl;
   } catch (storageErr) {
     console.warn(
-      'Firebase Storage upload failed or unconfigured, falling back to Canvas compressed Base64:',
+      'Firebase Storage upload failed or unconfigured, falling back to 1600px HD Canvas compressed Base64:',
       storageErr
     );
-    return await compressImageToDataUrl(file);
+    return await compressImage(file);
   }
 };
 
@@ -380,38 +343,184 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
         </div>
       </div>
 
-      {/* Phone Verification Notice Banner if not verified */}
-      {!currentSeller.isPhoneVerified && (
-        <div className="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Phone className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                Phone Number Verification Required
-              </h4>
-              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                Verify your Ugandan phone number (+256...) to start receiving customer orders and MoMo settlements.
-              </p>
+      {/* Guided Verification Banner for Unverified Sellers */}
+      {!currentSeller.isVerified && (
+        <div className="mb-6 p-5 sm:p-6 rounded-3xl bg-linear-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-slate-900 border-2 border-amber-300 dark:border-amber-700/80 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-amber-200 dark:border-amber-800/60">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Merchant KYC & Verification Checklist</span>
+                  <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    Action Required
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  Complete these 3 steps to earn the verified merchant badge and activate automatic MoMo order settlements.
+                </p>
+              </div>
             </div>
+
+            {!currentSeller.verificationDocumentUrl ? (
+              <button
+                onClick={() => setActiveTab('verification')}
+                className="px-4 py-2.5 bg-linear-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Upload National ID / Business License Now</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setActiveTab('verification')}
+                className="px-4 py-2 bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-slate-750 transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-amber-600" />
+                <span>View Submitted Documents</span>
+              </button>
+            )}
           </div>
 
-          <form onSubmit={handleVerifyPhone} className="flex items-center gap-2">
-            <input
-              type="text"
-              required
-              maxLength={6}
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-              placeholder="Code (e.g. 123456)"
-              className="px-3 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-amber-300 dark:border-amber-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 w-32"
-            />
-            <button
-              type="submit"
-              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors shrink-0"
-            >
-              Verify OTP
-            </button>
-          </form>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Step 1: Phone Verification */}
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  1. Phone Verified
+                </span>
+                {currentSeller.isPhoneVerified ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                    <AlertCircle className="w-3.5 h-3.5" /> Verify Phone Number
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  {currentSeller.phone || 'No phone registered'}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Required for SMS alerts on new customer orders.
+                </p>
+              </div>
+
+              {!currentSeller.isPhoneVerified && (
+                <form onSubmit={handleVerifyPhone} className="mt-2.5 flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="OTP (e.g. 123456)"
+                    className="flex-1 px-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-amber-300 dark:border-amber-700 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-colors shrink-0 cursor-pointer"
+                  >
+                    Verify
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Step 2: MoMo Payout Line */}
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-855 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  2. MoMo Payout Line
+                </span>
+                {currentSeller.momoNumber ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Configured
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                    <AlertCircle className="w-3.5 h-3.5" /> Missing Line
+                  </span>
+                )}
+              </div>
+
+              <div>
+                {currentSeller.momoNumber ? (
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {currentSeller.momoNetwork || 'MTN'} MoMo: {currentSeller.momoNumber}
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    No Payout Line Registered
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Direct automated disbursements on order delivery.
+                </p>
+              </div>
+
+              {!currentSeller.momoNumber ? (
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className="mt-2.5 w-full py-1.5 px-3 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 font-bold text-xs rounded-lg border border-amber-200 dark:border-amber-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Add Payout Phone</span>
+                </button>
+              ) : (
+                <div className="mt-2.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Ready for payouts
+                </div>
+              )}
+            </div>
+
+            {/* Step 3: KYC Identity Upload */}
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  3. KYC Identity Upload
+                </span>
+                {currentSeller.isVerified ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                  </span>
+                ) : currentSeller.verificationDocumentUrl ? (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/70 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700">
+                    <Clock className="w-3.5 h-3.5" /> Under Review
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">
+                    <AlertCircle className="w-3.5 h-3.5" /> Pending Upload
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  {currentSeller.verificationDocumentUrl
+                    ? (currentSeller.verificationDocumentType?.replace('_', ' ') || 'Document Uploaded')
+                    : 'National ID or Business License'}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {currentSeller.verificationDocumentUrl
+                    ? 'Compliance team is reviewing your documents.'
+                    : 'URSB registration, KCCA permit or NIRA ID.'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('verification')}
+                className="mt-2.5 w-full py-1.5 px-3 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 dark:hover:bg-orange-900/50 text-orange-700 dark:text-orange-300 font-bold text-xs rounded-lg border border-orange-200 dark:border-orange-800 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{currentSeller.verificationDocumentUrl ? 'Update Document' : 'Upload Document'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -673,10 +782,28 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
                   </div>
 
                   {/* Delivery destination */}
-                  <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1">
-                    <div className="font-bold text-slate-800">Delivery Address:</div>
+                  <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-bold text-slate-800">Delivery Address:</div>
+                      {ord.deliveryAddress.gpsCoordinates && (
+                        <a
+                          href={`https://maps.google.com/?q=${ord.deliveryAddress.gpsCoordinates.latitude ?? ord.deliveryAddress.gpsCoordinates.lat},${ord.deliveryAddress.gpsCoordinates.longitude ?? ord.deliveryAddress.gpsCoordinates.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 transition-colors text-[11px] shadow-2xs"
+                          title="Open direct Google Maps GPS navigation pin"
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Open Delivery Pin on Google Maps</span>
+                          <ExternalLink className="w-3 h-3 text-emerald-500 shrink-0" />
+                        </a>
+                      )}
+                    </div>
                     <p className="text-slate-600">{ord.deliveryAddress.fullName} • {ord.deliveryAddress.phone}</p>
                     <p className="text-slate-500">{ord.deliveryAddress.streetAddress}, {ord.deliveryAddress.divisionOrTown}, {ord.deliveryAddress.district}</p>
+                    {ord.deliveryAddress.notes && (
+                      <p className="text-slate-500 italic mt-0.5">Notes: {ord.deliveryAddress.notes}</p>
+                    )}
                   </div>
 
                   {/* Status Actions */}

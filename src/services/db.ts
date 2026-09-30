@@ -18,6 +18,7 @@ import {
   DeliveryAddress,
   PaymentMethod,
   PaymentProvider,
+  PaymentStatus,
   WishlistItem,
   AppNotification,
   VerificationDocumentType,
@@ -613,7 +614,7 @@ class DatabaseService {
     paymentProvider?: PaymentProvider;
     paymentPhone?: string;
     paymentReference?: string;
-    paymentStatus?: 'pending' | 'paid' | 'pay_on_delivery';
+    paymentStatus?: PaymentStatus;
   }): Promise<{ masterOrderId: string; subOrders: Order[] }> {
     const masterOrderId = `SWIFT-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
     const now = new Date().toISOString();
@@ -670,9 +671,7 @@ class DatabaseService {
         paymentProvider: params.paymentProvider,
         paymentPhone: params.paymentPhone,
         paymentReference: params.paymentReference,
-        paymentStatus:
-          params.paymentStatus ||
-          (params.paymentMethod === 'cod' ? 'pay_on_delivery' : 'paid'),
+        paymentStatus: params.paymentStatus || 'paid',
         status: 'Pending',
         trackingHistory: [
           {
