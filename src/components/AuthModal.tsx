@@ -52,10 +52,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (res.success) {
       const users = await dbService.getUsers();
       const cleanSearch = emailOrPhone.trim().toLowerCase();
-      const activeId = localStorage.getItem('swiftcart_active_user_id');
+      const currentUid = auth.currentUser?.uid;
       const foundUser = users.find(
         (u) =>
-          (activeId && u.id === activeId) ||
+          (currentUid && u.id === currentUid) ||
           u.email.toLowerCase() === cleanSearch ||
           u.phone.replace(/[\s+-]/g, '') === cleanSearch.replace(/[\s+-]/g, '')
       );

@@ -10,7 +10,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { User, Seller, UserRole } from '../types';
 import { dbService, withTimeout } from '../services/db';
-import { SEED_USERS, SEED_SELLERS } from '../data/seedData';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -44,65 +43,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLiveAuth, setIsLiveAuth] = useState<boolean>(false);
 
-  // Synchronize user and seller data from Firestore or local fallback
+  // Load user and seller documents directly from Cloud Firestore
   const loadUserAndSeller = async (userId: string, isLive: boolean) => {
     try {
-      // 1. Try Firestore user doc with timeout
       let user: User | null = null;
       try {
-        const userDocSnap = await withTimeout(getDoc(doc(db, 'users', userId)), 2000);
+        const userDocSnap = await withTimeout(getDoc(doc(db, 'users', userId)), 6000);
         if (userDocSnap.exists()) {
           user = userDocSnap.data() as User;
         }
-      } catch (e) {
-        console.warn('Firestore user fetch:', e);
-      }
-
-      // 2. Fallback to dbService / local storage
-      if (!user) {
-        const users = await dbService.getUsers();
-        user = users.find((u) => u.id === userId) || null;
+      } catch (e: any) {
+        console.error('Firestore user lookup error:', e?.message || e);
       }
 
       if (!user) {
-        // User not found, clean up and set guest state
+        // Fallback check in case the user ID is mapped through users collection query
+        user = await dbService.getUserById(userId);
+      }
+
+      if (!user) {
         setCurrentUser(null);
         setCurrentSeller(null);
         setIsLiveAuth(false);
-        localStorage.removeItem('swiftcart_active_user_id');
-        localStorage.removeItem('swiftcart_is_live_auth');
         return;
       }
 
       setCurrentUser(user);
       setIsLiveAuth(isLive);
-      localStorage.setItem('swiftcart_active_user_id', user.id);
-      if (isLive) {
-        localStorage.setItem('swiftcart_is_live_auth', 'true');
-      } else {
-        localStorage.removeItem('swiftcart_is_live_auth');
-      }
 
-      // Load seller profile if user is a seller
+      // If user is a merchant, load seller profile from Firestore
       if (user.role === 'seller') {
         let seller: Seller | null = null;
         try {
-          const sellerDocSnap = await withTimeout(getDoc(doc(db, 'sellers', `seller_${user.id}`)), 2000);
-          if (sellerDocSnap.exists()) {
-            seller = sellerDocSnap.data() as Seller;
+          const sellerSnap = await withTimeout(getDoc(doc(db, 'sellers', user.id)), 6000);
+          if (sellerSnap.exists()) {
+            seller = sellerSnap.data() as Seller;
           } else {
-            const sellerByIdSnap = await withTimeout(getDoc(doc(db, 'sellers', user.id)), 2000);
-            if (sellerByIdSnap.exists()) {
-              seller = sellerByIdSnap.data() as Seller;
+            const altSnap = await withTimeout(getDoc(doc(db, 'sellers', `seller_${user.id}`)), 6000);
+            if (altSnap.exists()) {
+              seller = altSnap.data() as Seller;
             }
           }
-        } catch (e) {
-          console.warn('Firestore seller fetch:', e);
+        } catch (e: any) {
+          console.error('Firestore seller lookup error:', e?.message || e);
         }
 
         if (!seller) {
-          const sellers = await dbService.getSellers();
-          seller = sellers.find((s) => s.userId === user!.id || s.id === user!.id) || null;
+          seller = await dbService.getSellerById(user.id);
         }
 
         setCurrentSeller(seller || null);
@@ -110,56 +97,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentSeller(null);
       }
     } catch (err) {
-      console.error('Error loading user profile:', err);
+      console.error('Error loading user profile from Firestore:', err);
       setCurrentUser(null);
       setCurrentSeller(null);
       setIsLiveAuth(false);
-      localStorage.removeItem('swiftcart_active_user_id');
-      localStorage.removeItem('swiftcart_is_live_auth');
     }
   };
 
-  // Initialize DB and listen to official Firebase Auth state
+  // Initialize DB and subscribe to Firebase Auth state
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
     const init = async () => {
-      await dbService.initDatabase();
+      try {
+        await dbService.initDatabase();
+      } catch (err) {
+        console.error('Database initialization error:', err);
+      }
 
       try {
         unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
           if (fbUser) {
-            // Live Firebase authenticated session
             await loadUserAndSeller(fbUser.uid, true);
-            setIsLoading(false);
           } else {
-            // Check local saved user
-            const savedUserId = localStorage.getItem('swiftcart_active_user_id');
-            const isLocalLive = localStorage.getItem('swiftcart_is_live_auth') === 'true';
-            
-            if (savedUserId && !isLocalLive) {
-              await loadUserAndSeller(savedUserId, false);
-            } else {
-              // Guest state (no user logged in)
-              setCurrentUser(null);
-              setCurrentSeller(null);
-              setIsLiveAuth(false);
-              localStorage.removeItem('swiftcart_active_user_id');
-              localStorage.removeItem('swiftcart_is_live_auth');
-            }
-            setIsLoading(false);
+            setCurrentUser(null);
+            setCurrentSeller(null);
+            setIsLiveAuth(false);
           }
+          setIsLoading(false);
         });
       } catch (err) {
-        console.warn('Firebase onAuthStateChanged fallback:', err);
-        const savedUserId = localStorage.getItem('swiftcart_active_user_id');
-        if (savedUserId) {
-          await loadUserAndSeller(savedUserId, false);
-        } else {
-          setCurrentUser(null);
-          setCurrentSeller(null);
-          setIsLiveAuth(false);
-        }
+        console.error('Firebase onAuthStateChanged error:', err);
         setIsLoading(false);
       }
     };
@@ -177,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     setIsLoading(true);
-    // If currently signed into Firebase Auth, sign out first for persona switching
     try {
       if (auth.currentUser) {
         await signOut(auth);
@@ -185,7 +152,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Ignore
     }
-    localStorage.removeItem('swiftcart_is_live_auth');
     await loadUserAndSeller(userId, false);
     setIsLoading(false);
   };
@@ -197,74 +163,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmailOrPhone = emailOrPhone.trim();
     const cleanPassword = password || 'SwiftCart@2026';
 
-    // 1. Try Firebase Authentication with Email & Password
+    // 1. Firebase Authentication with Email & Password
     if (cleanEmailOrPhone.includes('@')) {
       try {
         const userCredential = await withTimeout(
           signInWithEmailAndPassword(auth, cleanEmailOrPhone, cleanPassword),
-          3500
+          8000
         );
         const fbUser = userCredential.user;
-        localStorage.setItem('swiftcart_is_live_auth', 'true');
         await loadUserAndSeller(fbUser.uid, true);
         return { success: true };
       } catch (fbErr: any) {
-        console.warn('Firebase Auth sign-in failed, checking registered accounts:', fbErr?.message);
-        // Only return early if error is definitely a live firebase wrong password
-        if (fbErr?.code === 'auth/wrong-password') {
+        console.warn('Firebase Auth sign-in failed:', fbErr?.code, fbErr?.message);
+        if (fbErr?.code === 'auth/wrong-password' || fbErr?.code === 'auth/invalid-credential') {
           return {
             success: false,
-            message: 'Incorrect password. Please check your credentials.',
+            message: 'Invalid email or password. Please check your credentials and try again.',
           };
         }
+        if (fbErr?.code === 'auth/user-not-found') {
+          return {
+            success: false,
+            message: 'No account found with this email. Please register to create an account.',
+          };
+        }
+        if (fbErr?.code === 'auth/too-many-requests') {
+          return {
+            success: false,
+            message: 'Access temporarily disabled due to many failed attempts. Please reset password or try later.',
+          };
+        }
+        return {
+          success: false,
+          message: fbErr?.message || 'Authentication failed. Please try again.',
+        };
       }
     }
 
-    // 2. Fallback to mock / offline / seed database login
-    const users = await dbService.getUsers();
-    const cleanSearch = cleanEmailOrPhone.toLowerCase();
-    const found = users.find(
-      (u) =>
-        u.email.toLowerCase() === cleanSearch ||
-        u.phone.replace(/[\s+-]/g, '') === cleanSearch.replace(/[\s+-]/g, '')
-    );
-
-    if (!found) {
-      return {
-        success: false,
-        message: 'No account found with this email or phone number in Uganda. Please register to create one.',
-      };
+    // 2. Phone number lookup in Cloud Firestore
+    const user = await dbService.getUserByEmail(cleanEmailOrPhone);
+    if (user && user.email) {
+      try {
+        const userCredential = await withTimeout(
+          signInWithEmailAndPassword(auth, user.email, cleanPassword),
+          8000
+        );
+        await loadUserAndSeller(userCredential.user.uid, true);
+        return { success: true };
+      } catch (fbErr: any) {
+        return {
+          success: false,
+          message: 'Invalid password for this account. Please try again.',
+        };
+      }
     }
 
-    // Validate password for local account if set
-    if (found.password && cleanPassword && found.password !== cleanPassword) {
-      return {
-        success: false,
-        message: 'Incorrect password. Please check your credentials.',
-      };
-    }
-
-    localStorage.removeItem('swiftcart_is_live_auth');
-    localStorage.setItem('swiftcart_active_user_id', found.id);
-
-    // If found.role === 'seller', ensure currentSeller is loaded from dbService.getSellers() and assigned immediately.
-    if (found.role === 'seller') {
-      const sellers = await dbService.getSellers();
-      const matchedSeller = sellers.find((s) => s.userId === found.id || s.id === found.id) || null;
-      setCurrentSeller(matchedSeller);
-    } else {
-      setCurrentSeller(null);
-    }
-
-    // If found.role === 'admin', explicitly set currentUser with role: 'admin'
-    if (found.role === 'admin') {
-      setCurrentUser({ ...found, role: 'admin' });
-    } else {
-      setCurrentUser(found);
-    }
-
-    await loadUserAndSeller(found.id, false);
-    return { success: true };
+    return {
+      success: false,
+      message: 'Please provide a valid registered email address to sign in.',
+    };
   };
 
   const register = async (data: {
@@ -279,36 +236,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     bio?: string;
   }): Promise<{ success: boolean; message?: string }> => {
     const password = data.password || 'SwiftCart@2026';
-    let newUid: string | null = null;
+    const email = data.email.trim().toLowerCase();
 
-    // 1. Attempt official Firebase Auth registration with timeout
+    // 1. Create real Cloud Firebase Auth account
+    let fbUid: string;
     try {
       const userCredential = await withTimeout(
-        createUserWithEmailAndPassword(auth, data.email.trim(), password),
-        3500
+        createUserWithEmailAndPassword(auth, email, password),
+        8000
       );
-      newUid = userCredential.user.uid;
-      localStorage.setItem('swiftcart_is_live_auth', 'true');
+      fbUid = userCredential.user.uid;
     } catch (fbErr: any) {
-      console.warn('Firebase Auth createUser fallback:', fbErr);
+      console.error('Firebase Auth createUser error:', fbErr?.code, fbErr?.message);
       if (fbErr?.code === 'auth/email-already-in-use') {
-        return { success: false, message: 'An account with this email address already exists. Please sign in instead.' };
+        return {
+          success: false,
+          message: 'An account with this email address already exists. Please sign in instead.',
+        };
       }
       if (fbErr?.code === 'auth/weak-password') {
-        return { success: false, message: 'Password is too weak. Please use at least 6 characters.' };
+        return {
+          success: false,
+          message: 'Password is too weak. Please use at least 6 characters.',
+        };
       }
-      // If Firebase Auth is offline or network fails, fall back to timestamp ID
-      newUid = `user_${Date.now()}`;
-      localStorage.removeItem('swiftcart_is_live_auth');
+      if (fbErr?.code === 'auth/invalid-email') {
+        return {
+          success: false,
+          message: 'Please enter a valid email address.',
+        };
+      }
+      return {
+        success: false,
+        message: fbErr?.message || 'Registration failed. Please check your network and try again.',
+      };
     }
 
+    // 2. Create User Profile document in Cloud Firestore (/users/${uid})
     const newUser: User = {
-      id: newUid,
+      id: fbUid,
       name: data.name.trim(),
-      email: data.email.trim().toLowerCase(),
+      email,
       phone: data.phone.trim(),
       role: data.role,
-      password: password,
       createdAt: new Date().toISOString(),
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.name)}`,
       notificationPreferences: {
@@ -319,20 +289,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     };
 
-    // 2. Save user profile document to Firestore (/users/${uid}) and local storage with timeout
     try {
-      await withTimeout(setDoc(doc(db, 'users', newUid), newUser), 2000);
-    } catch (e) {
-      console.warn('Firestore setDoc user fallback:', e);
+      await withTimeout(setDoc(doc(db, 'users', fbUid), newUser), 8000);
+    } catch (e: any) {
+      console.error('Firestore user save error:', e?.message || e);
     }
-    await dbService.saveUser(newUser);
 
-    // 3. If role is seller, save record under /sellers/${uid}
+    // 3. If role is seller, create Seller Profile document in Cloud Firestore (/sellers/${uid})
     if (data.role === 'seller') {
-      const newSellerId = `seller_${newUid}`;
       const newSeller: Seller = {
-        id: newSellerId,
-        userId: newUid,
+        id: fbUid,
+        userId: fbUid,
         storeName: data.storeName || `${data.name}'s Store`,
         slug: (data.storeName || data.name).toLowerCase().replace(/[^a-z0-9]/g, '-'),
         phone: data.phone.trim(),
@@ -349,19 +316,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       try {
-        await withTimeout(setDoc(doc(db, 'sellers', newSellerId), newSeller), 2000);
-      } catch (e) {
-        console.warn('Firestore setDoc seller fallback:', e);
+        await withTimeout(setDoc(doc(db, 'sellers', fbUid), newSeller), 8000);
+      } catch (e: any) {
+        console.error('Firestore seller save error:', e?.message || e);
       }
-      await dbService.saveSeller(newSeller);
+
       setCurrentSeller(newSeller);
     } else {
       setCurrentSeller(null);
     }
 
     setCurrentUser(newUser);
-    setIsLiveAuth(localStorage.getItem('swiftcart_is_live_auth') === 'true');
-    localStorage.setItem('swiftcart_active_user_id', newUser.id);
+    setIsLiveAuth(true);
 
     return { success: true };
   };
@@ -371,11 +337,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (code.length === 6 || code === '123456') {
       const updated: Seller = { ...currentSeller, isPhoneVerified: true };
       try {
-        await setDoc(doc(db, 'sellers', updated.id), updated, { merge: true });
-      } catch (e) {
-        console.warn('Firestore update seller phone verification:', e);
+        await withTimeout(setDoc(doc(db, 'sellers', updated.id), updated, { merge: true }), 8000);
+      } catch (e: any) {
+        console.error('Firestore update seller phone verification error:', e?.message || e);
       }
-      await dbService.saveSeller(updated);
       setCurrentSeller(updated);
       return true;
     }
@@ -386,11 +351,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentSeller) return;
     const updated: Seller = { ...currentSeller, ...updates };
     try {
-      await setDoc(doc(db, 'sellers', updated.id), updated, { merge: true });
-    } catch (e) {
-      console.warn('Firestore update seller profile:', e);
+      await withTimeout(setDoc(doc(db, 'sellers', updated.id), updated, { merge: true }), 8000);
+    } catch (e: any) {
+      console.error('Firestore update seller profile error:', e?.message || e);
     }
-    await dbService.saveSeller(updated);
     setCurrentSeller(updated);
   };
 
@@ -405,10 +369,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await signOut(auth);
       }
     } catch (e) {
-      console.warn('Firebase signOut:', e);
+      console.warn('Firebase signOut error:', e);
     }
-    localStorage.removeItem('swiftcart_active_user_id');
-    localStorage.removeItem('swiftcart_is_live_auth');
     setCurrentUser(null);
     setCurrentSeller(null);
     setIsLiveAuth(false);
