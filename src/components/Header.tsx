@@ -12,23 +12,20 @@ import {
   Shield,
   User,
   Zap,
-  MapPin,
   ChevronDown,
   LogOut,
   Package,
-  Sparkles,
   Heart,
   Bell,
-  Mic,
 } from 'lucide-react';
 
 interface HeaderProps {
-  currentCategory: string | null;
-  onSelectCategory: (cat: ProductCategory | null) => void;
+  currentCategory?: string | null;
+  onSelectCategory?: (cat: ProductCategory | null) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onOpenAuth: () => void;
-  onOpenDemoSwitcher: () => void;
+  onOpenDemoSwitcher?: () => void;
   currentView: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist';
   onNavigate: (view: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist') => void;
   onOpenGeminiChat?: () => void;
@@ -39,11 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   onOpenAuth,
-  onOpenDemoSwitcher,
   currentView,
   onNavigate,
-  onOpenGeminiChat,
-  onOpenLiveVoice,
 }) => {
   const { currentUser, currentSeller, logout } = useAuth();
   const { totalItemsCount, setIsCartOpen } = useCart();
@@ -103,30 +97,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Navigation */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Gemini AI Assistant Button */}
-            {onOpenGeminiChat && (
-              <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-800/60 rounded-xl p-0.5 shadow-2xs">
-                <button
-                  onClick={onOpenGeminiChat}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-orange-950 dark:text-orange-200 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors"
-                  title="Open Gemini AI Chat Assistant"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                  <span className="hidden sm:inline">Ask AI</span>
-                </button>
-
-                {onOpenLiveVoice && (
-                  <button
-                    onClick={onOpenLiveVoice}
-                    className="p-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-colors"
-                    title="Start Live Voice (gemini-3.8-live)"
-                  >
-                    <Mic className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* Dark/Light Theme Toggle */}
             <ThemeToggle size="md" />
 
@@ -198,22 +168,6 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Non-merchant / Non-admin Sell CTA */}
-            {(!currentUser || (currentUser.role !== 'seller' && currentUser.role !== 'admin')) && (
-              <button
-                onClick={() => {
-                  if (!currentUser) {
-                    onOpenAuth();
-                  } else {
-                    onNavigate('seller');
-                  }
-                }}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800 transition-colors cursor-pointer"
-              >
-                <Store className="w-4 h-4" />
-                <span>Sell on SwiftCart</span>
-              </button>
-            )}
 
             {/* Orders link */}
             <button
@@ -265,16 +219,6 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     <div className="p-1">
-                      <button
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          onOpenDemoSwitcher();
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 rounded-xl flex items-center gap-2"
-                      >
-                        <Sparkles className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                        Switch Demo Persona
-                      </button>
 
                       <button
                         onClick={() => {
@@ -364,20 +308,10 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-1.5 sm:gap-2">
-                {/* Persona Switcher icon button */}
-                <button
-                  onClick={onOpenDemoSwitcher}
-                  className="p-2 sm:px-2.5 sm:py-2 rounded-xl text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200/80 dark:border-orange-800/60 transition-colors flex items-center gap-1.5"
-                  title="Demo Accounts / Persona Switcher"
-                >
-                  <Sparkles className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                  <span className="hidden xl:inline text-xs font-bold">Demo Switcher</span>
-                </button>
-
                 {/* Prominent Sign In Button */}
                 <button
                   onClick={onOpenAuth}
-                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-sm transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-sm transition-all active:scale-95 cursor-pointer"
                 >
                   <User className="w-4 h-4" />
                   <span>Sign In</span>
