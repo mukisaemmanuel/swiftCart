@@ -17,6 +17,7 @@ import {
   MapPin,
   CheckCircle2,
 } from 'lucide-react';
+import { generateClientSideGemini } from '../services/geminiClient';
 
 export type ChatRoleType = 'general' | 'logistics' | 'procurement';
 export type ChatModelType = 'fast' | 'general' | 'complex';
@@ -100,23 +101,40 @@ How can I assist you today?`,
         content: m.content,
       }));
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let data: any = null;
+
+      // 1. Attempt backend /api/chat first
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: payloadMessages,
+            roleType,
+            modelType,
+            useSearchGrounding,
+          }),
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          console.warn('Backend /api/chat returned non-JSON, falling back to direct client-side Gemini AI...');
+        }
+      } catch (fetchErr) {
+        console.warn('Network call to /api/chat failed, falling back to direct client-side Gemini AI:', fetchErr);
+      }
+
+      // 2. Direct client-side Gemini fallback if backend was unavailable
+      if (!data) {
+        data = await generateClientSideGemini({
           messages: payloadMessages,
           roleType,
           modelType,
           useSearchGrounding,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${res.status}: Failed to get response`);
+        });
       }
-
-      const data = await res.json();
 
       const aiMsg: ChatMessage = {
         id: `ai-${Date.now()}`,

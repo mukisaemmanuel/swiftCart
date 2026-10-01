@@ -13,3 +13,11 @@ html.dark {
 html.light {
   color-scheme: light;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

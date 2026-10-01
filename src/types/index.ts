@@ -15,6 +15,7 @@ export interface User {
   role: UserRole;
   createdAt: string;
   avatarUrl?: string;
+  password?: string;
   notificationPreferences?: NotificationPreferences;
 }
 

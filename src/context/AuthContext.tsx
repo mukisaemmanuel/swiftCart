@@ -9,7 +9,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { User, Seller, UserRole } from '../types';
-import { dbService } from '../services/db';
+import { dbService, withTimeout } from '../services/db';
 import { SEED_USERS, SEED_SELLERS } from '../data/seedData';
 
 interface AuthContextType {
@@ -47,10 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Synchronize user and seller data from Firestore or local fallback
   const loadUserAndSeller = async (userId: string, isLive: boolean) => {
     try {
-      // 1. Try Firestore user doc
+      // 1. Try Firestore user doc with timeout
       let user: User | null = null;
       try {
-        const userDocSnap = await getDoc(doc(db, 'users', userId));
+        const userDocSnap = await withTimeout(getDoc(doc(db, 'users', userId)), 2000);
         if (userDocSnap.exists()) {
           user = userDocSnap.data() as User;
         }
@@ -87,11 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user.role === 'seller') {
         let seller: Seller | null = null;
         try {
-          const sellerDocSnap = await getDoc(doc(db, 'sellers', `seller_${user.id}`));
+          const sellerDocSnap = await withTimeout(getDoc(doc(db, 'sellers', `seller_${user.id}`)), 2000);
           if (sellerDocSnap.exists()) {
             seller = sellerDocSnap.data() as Seller;
           } else {
-            const sellerByIdSnap = await getDoc(doc(db, 'sellers', user.id));
+            const sellerByIdSnap = await withTimeout(getDoc(doc(db, 'sellers', user.id)), 2000);
             if (sellerByIdSnap.exists()) {
               seller = sellerByIdSnap.data() as Seller;
             }
@@ -200,24 +200,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Try Firebase Authentication with Email & Password
     if (cleanEmailOrPhone.includes('@')) {
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, cleanEmailOrPhone, cleanPassword);
+        const userCredential = await withTimeout(
+          signInWithEmailAndPassword(auth, cleanEmailOrPhone, cleanPassword),
+          3500
+        );
         const fbUser = userCredential.user;
         localStorage.setItem('swiftcart_is_live_auth', 'true');
         await loadUserAndSeller(fbUser.uid, true);
         return { success: true };
       } catch (fbErr: any) {
-        console.warn('Firebase Auth sign-in failed, testing local mock users:', fbErr?.message);
-        // If error is wrong password for an existing firebase account, report it
-        if (fbErr?.code === 'auth/wrong-password' || fbErr?.code === 'auth/invalid-credential') {
-          // Check if it's a seed account before failing
-          const users = await dbService.getUsers();
-          const seedMatch = users.find((u) => u.email.toLowerCase() === cleanEmailOrPhone.toLowerCase());
-          if (!seedMatch) {
-            return {
-              success: false,
-              message: 'Incorrect password or email address. Please check your credentials.',
-            };
-          }
+        console.warn('Firebase Auth sign-in failed, checking registered accounts:', fbErr?.message);
+        // Only return early if error is definitely a live firebase wrong password
+        if (fbErr?.code === 'auth/wrong-password') {
+          return {
+            success: false,
+            message: 'Incorrect password. Please check your credentials.',
+          };
         }
       }
     }
@@ -235,6 +233,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         message: 'No account found with this email or phone number in Uganda. Please register to create one.',
+      };
+    }
+
+    // Validate password for local account if set
+    if (found.password && cleanPassword && found.password !== cleanPassword) {
+      return {
+        success: false,
+        message: 'Incorrect password. Please check your credentials.',
       };
     }
 
@@ -275,13 +281,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const password = data.password || 'SwiftCart@2026';
     let newUid: string | null = null;
 
-    // 1. Attempt official Firebase Auth registration
+    // 1. Attempt official Firebase Auth registration with timeout
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email.trim(), password);
+      const userCredential = await withTimeout(
+        createUserWithEmailAndPassword(auth, data.email.trim(), password),
+        3500
+      );
       newUid = userCredential.user.uid;
       localStorage.setItem('swiftcart_is_live_auth', 'true');
     } catch (fbErr: any) {
-      console.warn('Firebase Auth createUser error:', fbErr);
+      console.warn('Firebase Auth createUser fallback:', fbErr);
       if (fbErr?.code === 'auth/email-already-in-use') {
         return { success: false, message: 'An account with this email address already exists. Please sign in instead.' };
       }
@@ -299,6 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: data.email.trim().toLowerCase(),
       phone: data.phone.trim(),
       role: data.role,
+      password: password,
       createdAt: new Date().toISOString(),
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.name)}`,
       notificationPreferences: {
@@ -309,9 +319,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     };
 
-    // 2. Save user profile document to Firestore (/users/${uid}) and local storage
+    // 2. Save user profile document to Firestore (/users/${uid}) and local storage with timeout
     try {
-      await setDoc(doc(db, 'users', newUid), newUser);
+      await withTimeout(setDoc(doc(db, 'users', newUid), newUser), 2000);
     } catch (e) {
       console.warn('Firestore setDoc user fallback:', e);
     }
@@ -339,7 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       try {
-        await setDoc(doc(db, 'sellers', newSellerId), newSeller);
+        await withTimeout(setDoc(doc(db, 'sellers', newSellerId), newSeller), 2000);
       } catch (e) {
         console.warn('Firestore setDoc seller fallback:', e);
       }

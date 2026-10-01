@@ -201,8 +201,8 @@ Cite real facts clearly and convert relevant prices to Ugandan Shillings (UGX).`
 });
 
 // --- PESAPAL v3 PAYMENT GATEWAY BACKEND INTEGRATION ---
-const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY || 'Pc09NhaCe8X+KMspc7awL/bVhMz4lQ4O';
-const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || 'GThj6JwCfTznMZ0Ug15e5siL76o=';
+const PESAPAL_CONSUMER_KEY = process.env.PESAPAL_CONSUMER_KEY || '';
+const PESAPAL_CONSUMER_SECRET = process.env.PESAPAL_CONSUMER_SECRET || '';
 const PESAPAL_ENV = (process.env.PESAPAL_ENV || 'sandbox').toLowerCase();
 const PESAPAL_BASE_URL =
   PESAPAL_ENV === 'live'

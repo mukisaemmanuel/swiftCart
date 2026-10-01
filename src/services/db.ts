@@ -40,6 +40,15 @@ const LS_USERS_KEY = 'swiftcart_users_v1';
 const LS_WISHLIST_KEY = 'swiftcart_wishlist_v1';
 const LS_NOTIFICATIONS_KEY = 'swiftcart_notifications_v1';
 
+export async function withTimeout<T>(promise: Promise<T>, timeoutMs = 2500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
 class DatabaseService {
   private initialized = false;
 
@@ -48,23 +57,20 @@ class DatabaseService {
 
     try {
       const prodCol = collection(db, 'products');
-      const snap = await getDocs(prodCol);
+      const snap = await withTimeout(getDocs(prodCol), 2500);
 
       if (snap.empty) {
-        for (const p of SEED_PRODUCTS) {
-          await setDoc(doc(db, 'products', p.id), p);
-        }
-        for (const s of SEED_SELLERS) {
-          await setDoc(doc(db, 'sellers', s.id), s);
-        }
-        for (const r of SEED_REVIEWS) {
-          await setDoc(doc(db, 'reviews', r.id), r);
-        }
-        for (const u of SEED_USERS) {
-          await setDoc(doc(db, 'users', u.id), u);
-        }
-        for (const o of SEED_ORDERS) {
-          await setDoc(doc(db, 'orders', o.id), o);
+        try {
+          await withTimeout(
+            Promise.all([
+              ...SEED_PRODUCTS.slice(0, 10).map((p) => setDoc(doc(db, 'products', p.id), p)),
+              ...SEED_SELLERS.map((s) => setDoc(doc(db, 'sellers', s.id), s)),
+              ...SEED_USERS.map((u) => setDoc(doc(db, 'users', u.id), u)),
+            ]),
+            3000
+          );
+        } catch {
+          // Non-blocking seeding
         }
       }
       this.initialized = true;
@@ -130,9 +136,19 @@ class DatabaseService {
   // --- USERS ---
   async getUsers(): Promise<User[]> {
     try {
-      const snap = await getDocs(collection(db, 'users'));
+      const snap = await withTimeout(getDocs(collection(db, 'users')), 2000);
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as User);
+        const firestoreUsers = snap.docs.map((d) => d.data() as User);
+        const local = localStorage.getItem(LS_USERS_KEY);
+        const localUsers: User[] = local ? JSON.parse(local) : [];
+        const merged = [...firestoreUsers];
+        for (const lu of localUsers) {
+          if (!merged.some((mu) => mu.id === lu.id)) {
+            merged.push(lu);
+          }
+        }
+        localStorage.setItem(LS_USERS_KEY, JSON.stringify(merged));
+        return merged;
       }
     } catch (e) {
       console.warn('Users fetch fallback:', e);
@@ -143,11 +159,12 @@ class DatabaseService {
 
   async saveUser(user: User): Promise<void> {
     try {
-      await setDoc(doc(db, 'users', user.id), user);
+      await withTimeout(setDoc(doc(db, 'users', user.id), user), 2000);
     } catch (e) {
       console.warn('Saving user fallback:', e);
     }
-    const users = await this.getUsers();
+    const local = localStorage.getItem(LS_USERS_KEY);
+    const users: User[] = local ? JSON.parse(local) : [...SEED_USERS];
     const updated = [...users.filter((u) => u.id !== user.id), user];
     localStorage.setItem(LS_USERS_KEY, JSON.stringify(updated));
   }
@@ -164,7 +181,7 @@ class DatabaseService {
   // --- SELLERS ---
   async getSellers(): Promise<Seller[]> {
     try {
-      const snap = await getDocs(collection(db, 'sellers'));
+      const snap = await withTimeout(getDocs(collection(db, 'sellers')), 2000);
       if (!snap.empty) {
         const firestoreSellers = snap.docs.map((d) => d.data() as Seller);
         return firestoreSellers.map((fs) => {
@@ -202,11 +219,12 @@ class DatabaseService {
 
   async saveSeller(seller: Seller): Promise<void> {
     try {
-      await setDoc(doc(db, 'sellers', seller.id), seller);
+      await withTimeout(setDoc(doc(db, 'sellers', seller.id), seller), 2000);
     } catch (e) {
       console.warn('Error saving seller fallback:', e);
     }
-    const sellers = await this.getSellers();
+    const local = localStorage.getItem(LS_SELLERS_KEY);
+    const sellers: Seller[] = local ? JSON.parse(local) : [...SEED_SELLERS];
     const index = sellers.findIndex((s) => s.id === seller.id);
     if (index >= 0) {
       sellers[index] = seller;
@@ -296,7 +314,7 @@ class DatabaseService {
   // --- PRODUCTS ---
   async getProducts(): Promise<Product[]> {
     try {
-      const snap = await getDocs(collection(db, 'products'));
+      const snap = await withTimeout(getDocs(collection(db, 'products')), 2500);
       if (!snap.empty) {
         const firestoreProds = snap.docs.map((d) => d.data() as Product);
         return firestoreProds.map((fp) => {
@@ -329,7 +347,7 @@ class DatabaseService {
 
   async getProductById(id: string): Promise<Product | null> {
     try {
-      const snap = await getDoc(doc(db, 'products', id));
+      const snap = await withTimeout(getDoc(doc(db, 'products', id)), 2000);
       if (snap.exists()) {
         return snap.data() as Product;
       }
@@ -342,7 +360,7 @@ class DatabaseService {
 
   async saveProduct(product: Product): Promise<void> {
     try {
-      await setDoc(doc(db, 'products', product.id), product);
+      await withTimeout(setDoc(doc(db, 'products', product.id), product), 2000);
     } catch (e) {
       console.warn('Saving product fallback:', e);
     }
@@ -589,7 +607,7 @@ class DatabaseService {
   // --- ORDERS & MULTI-VENDOR SPLITTING ---
   async getOrders(): Promise<Order[]> {
     try {
-      const snap = await getDocs(collection(db, 'orders'));
+      const snap = await withTimeout(getDocs(collection(db, 'orders')), 2500);
       if (!snap.empty) {
         const orders = snap.docs.map((d) => d.data() as Order);
         return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -685,7 +703,7 @@ class DatabaseService {
       };
 
       try {
-        await setDoc(doc(db, 'orders', subOrder.id), subOrder);
+        await withTimeout(setDoc(doc(db, 'orders', subOrder.id), subOrder), 2000);
       } catch (err) {
         console.warn('Order save fallback:', err);
       }
