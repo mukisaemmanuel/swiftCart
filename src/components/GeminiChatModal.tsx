@@ -149,10 +149,14 @@ How can I assist you today?`,
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
       console.error('Chat error:', err);
+      let errorMsg = `Sorry, I encountered an issue processing your request: ${err.message}. Please try again.`;
+      if (err.message && (err.message.includes('API key') || err.message.includes('API_KEY'))) {
+        errorMsg = 'Gemini AI Assistant requires a valid API key. Please add GEMINI_API_KEY in your Vercel Project Settings (Settings > Environment Variables) and redeploy.';
+      }
       const fallbackMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Sorry, I encountered an issue processing your request: ${err.message}. Please try again.`,
+        content: errorMsg,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
