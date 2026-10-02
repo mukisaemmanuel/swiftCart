@@ -105,10 +105,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-[calc(100vw-1rem)] sm:max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-2 sm:my-8 max-h-[92dvh] flex flex-col">
         {/* Header */}
-        <div className="bg-linear-to-r from-orange-600 to-amber-600 p-5 text-white flex justify-between items-center">
+        <div className="bg-linear-to-r from-orange-600 to-amber-600 p-4 sm:p-5 text-white flex justify-between items-center shrink-0">
           <div>
             <span className="text-xs uppercase tracking-wider font-semibold text-orange-200 bg-orange-700/40 px-2 py-0.5 rounded-full">
               SwiftCart Uganda

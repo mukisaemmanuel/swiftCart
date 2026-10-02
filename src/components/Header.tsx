@@ -69,33 +69,33 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-slate-900 border-b border-slate-800 px-3 sm:px-4 py-2.5 shadow-md overflow-x-clip transition-colors duration-200">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 md:gap-6">
+      <header className="sticky top-0 z-40 w-full max-w-full bg-slate-900 border-b border-slate-800 px-2.5 sm:px-4 py-2 sm:py-2.5 shadow-md overflow-x-clip transition-colors duration-200">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-4 md:gap-6 w-full">
           {/* Left: Mobile Hamburger & Brand Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
             {/* Hamburger Button (strictly mobile < 768px) */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-hidden cursor-pointer"
+              className="md:hidden p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-hidden cursor-pointer shrink-0"
               aria-label="Open mobile menu"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             {/* Logo */}
             <button
               onClick={() => onNavigate('storefront')}
-              className="flex items-center gap-2 group text-left shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 group text-left shrink-0 cursor-pointer select-none"
             >
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-linear-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
-                <Zap className="w-5 h-5 sm:w-6 sm:h-6 fill-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-linear-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform shrink-0">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <span className="text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight text-white">
+                  <span className="text-base sm:text-xl md:text-2xl font-extrabold tracking-tight text-white leading-none">
                     Swift<span className="text-orange-500">Cart</span>
                   </span>
-                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-orange-950/80 border border-orange-800/80 text-orange-400 rounded-md">
+                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase px-1 sm:px-1.5 py-0.2 bg-orange-950/80 border border-orange-800/80 text-orange-400 rounded-md shrink-0">
                     UG
                   </span>
                 </div>
@@ -137,11 +137,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Mobile Search Toggle (< 768px) */}
             <button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-              className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="md:hidden p-1.5 sm:p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               aria-label="Toggle search"
             >
               <Search className="w-5 h-5" />
@@ -369,13 +369,13 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Cart Button (Always visible on mobile & desktop) */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 sm:p-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold transition-all flex items-center gap-1.5 sm:gap-2 shadow-sm shrink-0 cursor-pointer"
+              className="relative p-1.5 sm:p-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold transition-all flex items-center gap-1.5 sm:gap-2 shadow-sm shrink-0 cursor-pointer"
               aria-label="Shopping Cart"
             >
               <ShoppingBag className="w-5 h-5" />
               <span className="hidden sm:inline text-xs font-bold">Cart</span>
               {totalItemsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-900 text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-xs">
+                <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-900 text-[10px] sm:text-[11px] font-black w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-xs">
                   {totalItemsCount}
                 </span>
               )}

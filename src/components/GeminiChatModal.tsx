@@ -181,8 +181,8 @@ How can I assist you today?`,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col h-[88vh] max-h-[800px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1rem)] sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col h-[90dvh] max-h-[800px]">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-900 dark:bg-slate-950 text-white">
           <div className="flex items-center gap-3">
@@ -194,10 +194,10 @@ How can I assist you today?`,
                 <h3 className="font-extrabold text-sm sm:text-base">SwiftCart Gemini AI</h3>
                 <span className="text-[10px] font-bold uppercase bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30">
                   {modelType === 'fast'
-                    ? 'gemini-3.1-flash-lite'
+                    ? 'gemini-3.8-flash (Fast)'
                     : modelType === 'complex'
-                    ? 'gemini-3.1-pro-preview'
-                    : 'gemini-3.5-flash'}
+                    ? 'gemini-3.8-pro'
+                    : 'gemini-3.8-flash'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -251,9 +251,9 @@ How can I assist you today?`,
                     ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
-                title="gemini-3.5-flash with Google Search Grounding"
+                title="gemini-3.8-flash with Google Search Grounding"
               >
-                <Search className="w-3 h-3" /> General (3.5 Flash)
+                <Search className="w-3 h-3" /> General (3.8 Flash)
               </button>
               <button
                 onClick={() => setModelType('fast')}

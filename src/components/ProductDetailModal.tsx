@@ -105,7 +105,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-4 flex flex-col max-h-[92vh] transition-colors duration-200">
+      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl sm:rounded-3xl max-w-[calc(100vw-1rem)] sm:max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-2 sm:my-4 flex flex-col max-h-[92dvh] transition-colors duration-200">
         {/* Top bar */}
         <div className="p-3.5 px-5 bg-slate-900 dark:bg-slate-950 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-2 text-xs text-slate-300">

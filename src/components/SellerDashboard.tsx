@@ -154,7 +154,22 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
   };
 
   useEffect(() => {
+    if (!currentSeller) return;
     loadData();
+
+    // Real-time live synchronization for Seller Dashboard
+    const unsubProds = dbService.subscribeToSellerProducts(currentSeller.id, (liveProds) => {
+      setProducts(liveProds);
+    });
+
+    const unsubOrders = dbService.subscribeToSellerOrders(currentSeller.id, (liveOrders) => {
+      setOrders(liveOrders);
+    });
+
+    return () => {
+      unsubProds();
+      unsubOrders();
+    };
   }, [currentSeller?.id]);
 
   if (!currentSeller) {
@@ -291,51 +306,51 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
   const totalWishlistSaves = Object.values(wishlistCounts).reduce<number>((a: number, b: number) => a + b, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-2.5 sm:px-4 py-4 sm:py-6 w-full max-w-full">
       {/* Top Banner / Store Header */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden mb-6">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
+      <div className="bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl relative overflow-hidden mb-6 w-full">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
             <img
               src={currentSeller.logoUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80'}
               alt={currentSeller.storeName}
-              className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20 shrink-0"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-white/20 shrink-0"
             />
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black">{currentSeller.storeName}</h1>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black truncate">{currentSeller.storeName}</h1>
                 {currentSeller.isVerified ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-full">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Verified Store
+                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded-full shrink-0">
+                    <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Verified Store
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 px-2.5 py-0.5 rounded-full">
-                    <Clock className="w-3.5 h-3.5" /> Unverified Seller
+                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 px-2 py-0.5 rounded-full shrink-0">
+                    <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Unverified
                   </span>
                 )}
                 {currentSeller.status === 'pending' && (
-                  <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">
-                    Admin Approval Pending
+                  <span className="text-[9px] sm:text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded-full uppercase shrink-0">
+                    Approval Pending
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-1 truncate">
                 {currentSeller.district} • MoMo Payout: {currentSeller.momoNetwork || 'MTN'} (
                 {currentSeller.momoNumber || currentSeller.phone})
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={onBackToShopping}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+              className="px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
             >
-              <ArrowLeft className="w-4 h-4" /> View Storefront
+              <ArrowLeft className="w-4 h-4" /> Storefront
             </button>
             <button
               onClick={handleOpenAddProduct}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              className="px-3 sm:px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Product
             </button>
@@ -531,10 +546,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto gap-2">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto no-scrollbar gap-1.5 sm:gap-2 w-full max-w-full">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeTab === 'overview'
               ? 'border-orange-600 text-orange-600 dark:text-orange-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -545,7 +560,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
 
         <button
           onClick={() => setActiveTab('products')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeTab === 'products'
               ? 'border-orange-600 text-orange-600 dark:text-orange-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -556,7 +571,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
 
         <button
           onClick={() => setActiveTab('orders')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeTab === 'orders'
               ? 'border-orange-600 text-orange-600 dark:text-orange-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -570,7 +585,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
 
         <button
           onClick={() => setActiveTab('verification')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeTab === 'verification'
               ? 'border-orange-600 text-orange-600 dark:text-orange-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -584,7 +599,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
 
         <button
           onClick={() => setActiveTab('profile')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
             activeTab === 'profile'
               ? 'border-orange-600 text-orange-600 dark:text-orange-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'

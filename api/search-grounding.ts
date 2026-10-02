@@ -28,7 +28,7 @@ export default async function handler(req: any, res: any) {
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: query,
       config: {
         systemInstruction: `You are the SwiftCart Uganda Market Search Analyst. Use Google Search grounding to retrieve current market prices, verified manufacturer warranties, specs, and regional context in Uganda and East Africa.
@@ -56,7 +56,7 @@ Cite real facts clearly and convert relevant prices to Ugandan Shillings (UGX).`
     return res.status(200).json({
       query,
       text,
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       searchSources,
     });
   } catch (error: any) {

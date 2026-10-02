@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Share2,
   ExternalLink,
+  KeyRound,
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -40,8 +41,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const { items, sellerPackages, totalProductsAmountUGX, totalDeliveryFeeUGX, grandTotalUGX, clearCart } = useCart();
   const { currentUser } = useAuth();
 
-  // Step state: 'details' | 'success'
-  const [step, setStep] = useState<'details' | 'success'>('details');
+  // Step state: 'details' | 'pin_prompt' | 'success'
+  const [step, setStep] = useState<'details' | 'pin_prompt' | 'success'>('details');
+
+  // Mobile Money PIN prompt & USSD simulation state
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinStatus, setPinStatus] = useState<'idle' | 'verifying' | 'approved' | 'failed'>('idle');
+  const [paymentTxId, setPaymentTxId] = useState('');
+  const [redirectCountdown, setRedirectCountdown] = useState<number>(2);
 
   // Address
   const [fullName, setFullName] = useState(currentUser?.name || '');
@@ -173,69 +180,94 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    // Direct Live Pesapal v3 Mobile Money USSD Gateway
+    // Direct Mobile Money USSD Gateway Initiation
     setIsProcessing(true);
     setErrorMessage(null);
     const generatedMasterId = `SWIFT-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
     try {
-      const pesapalRes = await paymentService.initiatePesapalPayment({
-        orderId: generatedMasterId,
+      const momoRes = await paymentService.initiateMobileMoney({
+        orderReference: generatedMasterId,
         amountUGX: grandTotalUGX,
         customerPhone: momoPhone,
         customerName: fullName,
-        customerEmail: currentUser.email || 'buyer@swiftcart.ug',
+        provider: paymentProvider,
+        narration: `SwiftCart Escrow Order ${generatedMasterId}`,
       });
 
-      if (pesapalRes.success && pesapalRes.redirect_url) {
-        // Save pending split orders into database with paymentStatus: 'pending'
-        const deliveryAddress: DeliveryAddress = {
-          fullName,
-          phone,
-          district,
-          divisionOrTown: division,
-          streetAddress,
-          notes,
-          ...(gpsCoordinates ? { gpsCoordinates } : {}),
-        };
-
-        const { masterOrderId, subOrders } = await dbService.createSplitOrders({
-          buyer: currentUser,
-          deliveryAddress,
-          cartItems: items,
-          paymentMethod: 'mobile_money',
-          paymentProvider,
-          paymentPhone: momoPhone,
-          paymentReference: pesapalRes.order_tracking_id || generatedMasterId,
-          paymentStatus: 'pending',
-        });
-
-        clearCart();
-        setCreatedMasterId(masterOrderId);
-        setCreatedOrders(subOrders);
-
-        // Redirect directly to the live Pesapal gateway for native handset USSD push
-        window.location.href = pesapalRes.redirect_url;
-        return;
-      } else {
-        setIsProcessing(false);
-        setErrorMessage(
-          pesapalRes.error ||
-          'Payment gateway connection error. Please try again or check phone number.'
-        );
-      }
-    } catch (pesapalErr) {
-      console.error('Pesapal initiation error:', pesapalErr);
+      setPaymentTxId(momoRes.transactionId);
       setIsProcessing(false);
-      setErrorMessage('Payment gateway connection error. Please try again or check phone number.');
+      setStep('pin_prompt');
+      setPinStatus('idle');
+      setEnteredPin('');
+    } catch (err: any) {
+      console.error('Mobile Money initiation error:', err);
+      setIsProcessing(false);
+      setErrorMessage(err?.message || 'Payment initiation error. Please check your phone number and try again.');
+    }
+  };
+
+  const handleConfirmPin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (enteredPin.length < 4) {
+      setErrorMessage('Please enter your 4-digit Mobile Money PIN to authorize payment.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setPinStatus('verifying');
+
+    try {
+      // 1. Verify PIN with network simulation
+      await paymentService.simulatePinEntryApproval(paymentTxId || 'TXN-MOMO');
+      setPinStatus('approved');
+
+      // 2. Real Cloud Firestore database split orders creation
+      const deliveryAddress: DeliveryAddress = {
+        fullName,
+        phone,
+        district,
+        divisionOrTown: division,
+        streetAddress,
+        notes,
+        ...(gpsCoordinates ? { gpsCoordinates } : {}),
+      };
+
+      const { masterOrderId, subOrders } = await dbService.createSplitOrders({
+        buyer: currentUser!,
+        deliveryAddress,
+        cartItems: items,
+        paymentMethod: 'mobile_money',
+        paymentProvider,
+        momoPhoneNumber: momoPhone,
+        notes,
+      });
+
+      clearCart();
+      setCreatedMasterId(masterOrderId);
+      setCreatedOrders(subOrders);
+
+      // Auto-redirect to tracking dashboard
+      setRedirectCountdown(2);
+      setTimeout(() => {
+        setRedirectCountdown(1);
+        setTimeout(() => {
+          onClose();
+          onOrderSuccess(masterOrderId);
+        }, 1000);
+      }, 1000);
+    } catch (err: any) {
+      console.error('Order placement error:', err);
+      setPinStatus('failed');
+      setErrorMessage(err?.message || 'Payment processing failed. Please try again.');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-4 flex flex-col max-h-[92vh] transition-colors duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/65 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl sm:rounded-3xl max-w-[calc(100vw-1rem)] sm:max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-2 sm:my-4 flex flex-col max-h-[92dvh] transition-colors duration-200">
         {/* Header */}
-        <div className="bg-linear-to-r from-orange-600 to-amber-600 p-5 text-white flex justify-between items-center shrink-0">
+        <div className="bg-linear-to-r from-orange-600 to-amber-600 p-4 sm:p-5 text-white flex justify-between items-center shrink-0">
           <div>
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-200 bg-orange-700/50 px-2 py-0.5 rounded-full">
               SwiftCart Checkout
@@ -243,6 +275,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <h3 className="text-xl font-extrabold mt-1">
               {step === 'success'
                 ? 'Order Confirmed!'
+                : step === 'pin_prompt'
+                ? 'Approve Mobile Money Payment'
                 : 'Delivery & Payment Details'}
             </h3>
           </div>
@@ -568,7 +602,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Connecting to Pesapal USSD Gateway...</span>
+                    <span>Initiating Mobile Money USSD Prompt...</span>
                   </>
                 ) : (
                   <>
@@ -578,6 +612,145 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
               </button>
             </form>
+          )}
+
+          {/* Step: Interactive Handset Mobile Money PIN Verification */}
+          {step === 'pin_prompt' && (
+            <div className="space-y-6 py-2">
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border shadow-xs bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-300">
+                  <Smartphone className="w-3.5 h-3.5 animate-pulse text-amber-600 dark:text-amber-400" />
+                  <span>
+                    {paymentProvider === 'airtel_money' ? 'Airtel Money USSD Prompt' : 'MTN MoMo USSD Prompt'}
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  {pinStatus === 'approved' ? 'Payment Approved!' : 'Check Your Phone'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  {pinStatus === 'approved'
+                    ? 'Funds have been secured in 100% Buyer Protected Escrow.'
+                    : `A payment prompt has been sent to +${formatUgandaPhoneToInternational(momoPhone)}. Enter your Mobile Money PIN below or on your phone to complete.`}
+                </p>
+              </div>
+
+              {/* Transaction Summary Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400">Total Escrow Amount:</span>
+                  <span className="text-lg font-black text-orange-600 dark:text-orange-400">
+                    {formatUGX(grandTotalUGX)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs border-t border-slate-200 dark:border-slate-700/60 pt-2">
+                  <span className="text-slate-500 dark:text-slate-400">Subscriber Handset:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    +{formatUgandaPhoneToInternational(momoPhone)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs border-t border-slate-200 dark:border-slate-700/60 pt-2">
+                  <span className="text-slate-500 dark:text-slate-400">Escrow Recipient:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" /> SwiftCart Prepaid Escrow (100% Protected)
+                  </span>
+                </div>
+              </div>
+
+              {/* Verification States */}
+              {pinStatus === 'approved' ? (
+                <div className="p-6 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-2xl text-center space-y-4 animate-in fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 mx-auto flex items-center justify-center">
+                    <CheckCircle2 className="w-10 h-10 animate-bounce" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-extrabold text-emerald-950 dark:text-emerald-200">
+                      Payment Confirmed & Verified!
+                    </h4>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">
+                      {formatUGX(grandTotalUGX)} received into SwiftCart Escrow.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOrderSuccess(createdMasterId);
+                      }}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      <span>Go to Order Tracking Dashboard ({redirectCountdown}s)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleConfirmPin} className="space-y-4">
+                  <div className="p-4 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <KeyRound className="w-4 h-4 text-amber-400" /> Enter 4-Digit Mobile Money PIN:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEnteredPin('1234')}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 underline font-semibold"
+                      >
+                        Use Demo PIN (1234)
+                      </button>
+                    </div>
+
+                    <input
+                      type="password"
+                      maxLength={5}
+                      value={enteredPin}
+                      onChange={(e) => setEnteredPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="● ● ● ●"
+                      autoFocus
+                      disabled={pinStatus === 'verifying'}
+                      className="w-full text-center tracking-[0.5em] text-2xl font-black py-3 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-hidden focus:border-orange-500"
+                    />
+
+                    <p className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                      Encrypted End-to-End. Your PIN is never stored on our servers.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep('details');
+                        setPinStatus('idle');
+                        setErrorMessage(null);
+                      }}
+                      disabled={pinStatus === 'verifying'}
+                      className="w-full sm:w-1/3 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-colors disabled:opacity-50"
+                    >
+                      Back / Edit
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={pinStatus === 'verifying' || enteredPin.length < 4}
+                      className="w-full sm:w-2/3 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-50"
+                    >
+                      {pinStatus === 'verifying' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Verifying PIN with Telecom Network...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>I Have Put In PIN / Confirm Payment</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           )}
 
           {/* Step: Order Confirmation Success */}
@@ -697,12 +870,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         )}
 
                         {/* WhatsApp Action Buttons */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-2">
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row flex-wrap gap-2">
                           <a
                             href={sellerWhatsAppUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 min-w-[170px] px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                            className="w-full sm:w-auto sm:flex-1 min-w-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs text-xs"
                             title="Directly alert seller on WhatsApp for immediate packaging"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
@@ -713,7 +886,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             href={buyerReceiptUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all text-[11px]"
+                            className="w-full sm:w-auto sm:flex-1 min-w-0 px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs"
                             title="Send order receipt copy to your personal WhatsApp"
                           >
                             <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />

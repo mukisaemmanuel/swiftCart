@@ -10,6 +10,7 @@ import {
   where,
   orderBy,
   writeBatch,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import {
@@ -146,6 +147,19 @@ class DatabaseService {
     }
   }
 
+  // Real-time live listener for Users (auto-refreshes when accounts are created)
+  subscribeToUsers(callback: (users: User[]) => void): () => void {
+    const colRef = collection(db, 'users');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const users = snapshot.docs.map((d) => d.data() as User);
+        callback(users);
+      },
+      (err) => console.warn('Real-time users subscription note:', err)
+    );
+  }
+
   // --- SELLERS ---
   async getSellers(): Promise<Seller[]> {
     try {
@@ -185,6 +199,21 @@ class DatabaseService {
 
   async updateSellerStatus(sellerId: string, status: 'approved' | 'rejected'): Promise<void> {
     await withTimeout(updateDoc(doc(db, 'sellers', sellerId), { status }), 8000);
+  }
+
+  // Real-time live listener for Sellers (auto-refreshes when store profiles or verifications update)
+  subscribeToSellers(callback: (sellers: Seller[]) => void): () => void {
+    const colRef = collection(db, 'sellers');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const sellers = snapshot.docs.map((d) => d.data() as Seller);
+          callback(sellers);
+        }
+      },
+      (err) => console.warn('Real-time sellers subscription note:', err)
+    );
   }
 
   // Seller Verification Upload & Admin Approval
@@ -280,6 +309,34 @@ class DatabaseService {
 
   async deleteProduct(id: string): Promise<void> {
     await withTimeout(deleteDoc(doc(db, 'products', id)), 8000);
+  }
+
+  // Real-time live listener for Products (auto-refreshes marketplace catalog across all buyers)
+  subscribeToProducts(callback: (products: Product[]) => void): () => void {
+    const colRef = collection(db, 'products');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const products = snapshot.docs.map((d) => d.data() as Product);
+          callback(products);
+        }
+      },
+      (err) => console.warn('Real-time products subscription note:', err)
+    );
+  }
+
+  // Real-time live listener for Seller's own products
+  subscribeToSellerProducts(sellerId: string, callback: (products: Product[]) => void): () => void {
+    const q = query(collection(db, 'products'), where('sellerId', '==', sellerId));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const products = snapshot.docs.map((d) => d.data() as Product);
+        callback(products);
+      },
+      (err) => console.warn('Real-time seller products subscription note:', err)
+    );
   }
 
   // --- REVIEWS ---
@@ -489,6 +546,50 @@ class DatabaseService {
       console.error('Firestore getOrderById error:', e?.message || e);
     }
     return null;
+  }
+
+  // Real-time live listener for Orders (auto-refreshes Admin & Seller dashboards on new orders)
+  subscribeToOrders(callback: (orders: Order[]) => void): () => void {
+    const colRef = collection(db, 'orders');
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const orders = snapshot.docs.map((d) => d.data() as Order);
+        orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        callback(orders);
+      },
+      (err) => console.warn('Real-time orders subscription note:', err)
+    );
+  }
+
+  // Real-time live listener for Seller Orders
+  subscribeToSellerOrders(sellerId: string, callback: (orders: Order[]) => void): () => void {
+    const q = query(collection(db, 'orders'), where('sellerId', '==', sellerId));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const orders = snapshot.docs.map((d) => d.data() as Order);
+        orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        callback(orders);
+      },
+      (err) => console.warn('Real-time seller orders subscription note:', err)
+    );
+  }
+
+  // Real-time live listener for a specific Order tracking
+  subscribeToOrderById(orderId: string, callback: (order: Order | null) => void): () => void {
+    const docRef = doc(db, 'orders', orderId);
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          callback(snapshot.data() as Order);
+        } else {
+          callback(null);
+        }
+      },
+      (err) => console.warn('Real-time order subscription note:', err)
+    );
   }
 
   // Multi-seller Split Order Generation

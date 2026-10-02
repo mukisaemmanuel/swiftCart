@@ -32,7 +32,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
   ];
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none py-1 mb-6">
+    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar py-1 mb-5 sm:mb-6 w-full max-w-full -mx-1 px-1">
       {categories.map((cat) => {
         const isSelected =
           cat.name === 'All' ? selectedCategory === null : selectedCategory === cat.name;

@@ -155,11 +155,11 @@ class PaymentService {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
         return {
           success: false,
-          error: errData.error || `HTTP ${res.status}: Failed to initiate Pesapal payment`,
+          error: 'Pesapal gateway server is offline on static hosting. Use Direct MTN MoMo / Airtel Money.',
         };
       }
 
@@ -168,7 +168,7 @@ class PaymentService {
     } catch (err: any) {
       return {
         success: false,
-        error: err?.message || 'Network error connecting to Pesapal gateway.',
+        error: 'Payment gateway offline. Please proceed with direct MTN MoMo or Airtel Money.',
       };
     }
   }

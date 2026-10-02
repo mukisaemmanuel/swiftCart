@@ -48,7 +48,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
         return;
       }
       const all = await dbService.getOrders();
-      // Admin sees all marketplace orders, buyers see strictly their own orders
       if (currentUser.role === 'admin') {
         setOrders(all);
       } else {
@@ -59,6 +58,15 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
     };
 
     fetchOrders();
+
+    // Real-time live synchronization for Order status updates
+    const unsub = dbService.subscribeToOrders((all) => {
+      if (currentUser?.role === 'admin') {
+        setOrders(all);
+      } else if (currentUser) {
+        setOrders(all.filter((o) => o.buyerId === currentUser.id));
+      }
+    });
 
     // Check for Pesapal gateway payment verification return in URL
     const params = new URLSearchParams(window.location.search);
@@ -84,6 +92,10 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
         });
       });
     }
+
+    return () => {
+      unsub();
+    };
   }, [currentUser?.id, currentUser?.role]);
 
   const filteredOrders = orders.filter((o) => {
@@ -498,12 +510,12 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                       const buyerReceiptUrl = `https://wa.me/${cleanBuyerPhone}?text=${encodeURIComponent(buyerReceiptText)}`;
 
                       return (
-                        <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-wrap gap-2">
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row flex-wrap gap-2">
                           <a
                             href={sellerWhatsAppUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 min-w-[170px] px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs shadow-xs"
+                            className="w-full sm:w-auto sm:flex-1 min-w-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs shadow-xs"
                           >
                             <MessageCircle className="w-4 h-4" />
                             <span>Notify Seller via WhatsApp</span>
@@ -513,7 +525,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                             href={buyerReceiptUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs"
+                            className="w-full sm:w-auto sm:flex-1 min-w-0 px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs"
                           >
                             <Share2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>Send Receipt to Customer WhatsApp</span>

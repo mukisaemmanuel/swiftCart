@@ -165,9 +165,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 1. Firebase Authentication with Email & Password
     if (cleanEmailOrPhone.includes('@')) {
+      const emailLower = cleanEmailOrPhone.toLowerCase();
+      const isAdminEmail = emailLower === 'admin@swiftcart.ug' || emailLower === 'superadmin@swiftcart.ug';
+
       try {
         const userCredential = await withTimeout(
-          signInWithEmailAndPassword(auth, cleanEmailOrPhone, cleanPassword),
+          signInWithEmailAndPassword(auth, emailLower, cleanPassword),
           8000
         );
         const fbUser = userCredential.user;
@@ -175,6 +178,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       } catch (fbErr: any) {
         console.warn('Firebase Auth sign-in failed:', fbErr?.code, fbErr?.message);
+
+        // Auto-provision initial Admin / Superadmin if account does not exist in Firebase Auth yet
+        if (isAdminEmail && (fbErr?.code === 'auth/invalid-credential' || fbErr?.code === 'auth/user-not-found')) {
+          try {
+            console.log('Auto-provisioning default platform admin in Firebase Auth & Firestore...');
+            const adminCred = await withTimeout(
+              createUserWithEmailAndPassword(auth, emailLower, cleanPassword),
+              8000
+            );
+            const adminUser: User = {
+              id: adminCred.user.uid,
+              name: emailLower.startsWith('super') ? 'SwiftCart Super Admin' : 'SwiftCart Operations Admin',
+              email: emailLower,
+              phone: '+256700000001',
+              role: 'admin',
+              createdAt: new Date().toISOString(),
+              avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=250&q=80',
+              notificationPreferences: {
+                orderUpdates: true,
+                sellerNewOrders: true,
+                promotions: true,
+                pushEnabled: true,
+              },
+            };
+            await dbService.saveUser(adminUser);
+            await loadUserAndSeller(adminCred.user.uid, true);
+            return { success: true };
+          } catch (createErr: any) {
+            console.error('Error auto-provisioning admin:', createErr);
+          }
+        }
+
         if (fbErr?.code === 'auth/wrong-password' || fbErr?.code === 'auth/invalid-credential') {
           return {
             success: false,
@@ -191,6 +226,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             success: false,
             message: 'Access temporarily disabled due to many failed attempts. Please reset password or try later.',
+          };
+        }
+        if (fbErr?.code === 'auth/configuration-not-found') {
+          return {
+            success: false,
+            message: 'Firebase Authentication is not yet activated on project studio-9829790199-ca934. Please go to Firebase Console > Authentication and enable Email/Password provider.',
           };
         }
         return {
@@ -264,6 +305,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           success: false,
           message: 'Please enter a valid email address.',
+        };
+      }
+      if (fbErr?.code === 'auth/configuration-not-found') {
+        return {
+          success: false,
+          message: 'Firebase Authentication is not yet activated on project studio-9829790199-ca934. Please go to Firebase Console > Authentication and enable Email/Password provider.',
         };
       }
       return {

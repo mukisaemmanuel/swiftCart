@@ -72,6 +72,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
 
   useEffect(() => {
     loadData();
+
+    // Real-time live synchronization for Admin Panel
+    const unsubSellers = dbService.subscribeToSellers((liveSellers) => {
+      setSellers(liveSellers);
+    });
+
+    const unsubOrders = dbService.subscribeToOrders((liveOrders) => {
+      setOrders(liveOrders);
+    });
+
+    const unsubUsers = dbService.subscribeToUsers((liveUsers) => {
+      setUsers(liveUsers);
+    });
+
+    return () => {
+      unsubSellers();
+      unsubOrders();
+      unsubUsers();
+    };
   }, []);
 
   const handleApproveSeller = async (sellerId: string) => {
@@ -174,10 +193,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 gap-2 overflow-x-auto no-scrollbar w-full max-w-full">
         <button
           onClick={() => setActiveTab('verifications')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 ${
             activeTab === 'verifications'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -189,7 +208,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
 
         <button
           onClick={() => setActiveTab('orders')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 ${
             activeTab === 'orders'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -201,7 +220,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
 
         <button
           onClick={() => setActiveTab('sellers')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 ${
             activeTab === 'sellers'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -213,7 +232,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
 
         <button
           onClick={() => setActiveTab('users')}
-          className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 ${
             activeTab === 'users'
               ? 'border-purple-600 text-purple-600 dark:text-purple-400'
               : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100'
@@ -479,34 +498,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping }) => {
 
       {/* Tab: Users */}
       {activeTab === 'users' && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-              <tr>
-                <th className="p-3">User</th>
-                <th className="p-3">Role</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Joined</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="p-3">
-                    <div className="font-bold text-slate-800">{u.name}</div>
-                    <div className="text-slate-400 text-[11px]">{u.email}</div>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-bold uppercase text-[10px] px-2 py-0.5 rounded bg-slate-100">
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-600">{u.phone}</td>
-                  <td className="p-3 text-slate-400">{formatDate(u.createdAt)}</td>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs w-full max-w-full">
+          <div className="overflow-x-auto no-scrollbar w-full">
+            <table className="w-full text-left text-xs min-w-[500px]">
+              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold">
+                <tr>
+                  <th className="p-3">User</th>
+                  <th className="p-3">Role</th>
+                  <th className="p-3">Phone</th>
+                  <th className="p-3">Joined</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="p-3">
+                      <div className="font-bold text-slate-800 dark:text-slate-200">{u.name}</div>
+                      <div className="text-slate-400 text-[11px]">{u.email}</div>
+                    </td>
+                    <td className="p-3">
+                      <span className="font-bold uppercase text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300">
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-600 dark:text-slate-400">{u.phone}</td>
+                    <td className="p-3 text-slate-400">{formatDate(u.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

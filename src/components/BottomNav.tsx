@@ -26,8 +26,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const { currentUser } = useAuth();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-1.5 px-2 md:hidden shadow-lg safe-bottom transition-colors duration-200">
-      <div className="flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-1 px-1.5 md:hidden shadow-lg safe-bottom transition-colors duration-200">
+      <div className="flex items-center justify-around max-w-lg mx-auto">
         {/* Home */}
         <button
           onClick={() => onNavigate('storefront')}

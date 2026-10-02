@@ -51,9 +51,9 @@ export default async function handler(req: any, res: any) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    let selectedModel = 'gemini-2.5-flash';
-    if (modelType === 'complex') selectedModel = 'gemini-2.5-pro';
-    else if (modelType === 'fast') selectedModel = 'gemini-2.5-flash';
+    let selectedModel = 'gemini-3.8-flash';
+    if (modelType === 'complex') selectedModel = 'gemini-3.8-pro';
+    else if (modelType === 'fast') selectedModel = 'gemini-3.8-flash';
 
     const isSearchRequested = useSearchGrounding || modelType === 'general';
     const tools = isSearchRequested ? [{ googleSearch: {} }] : undefined;

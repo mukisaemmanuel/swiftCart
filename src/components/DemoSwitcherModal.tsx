@@ -18,8 +18,8 @@ export const DemoSwitcherModal: React.FC<DemoSwitcherModalProps> = ({ isOpen, on
   const demoUsers = SEED_USERS.filter((user) => user.role !== 'admin');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-colors duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs">
+      <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-[calc(100vw-1rem)] sm:max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-colors duration-200 max-h-[90dvh] flex flex-col">
         <div className="bg-linear-to-r from-orange-600 to-amber-600 p-5 text-white flex justify-between items-center">
           <div>
             <span className="text-xs uppercase tracking-wider font-semibold text-orange-200 bg-orange-700/40 px-2 py-0.5 rounded-full">

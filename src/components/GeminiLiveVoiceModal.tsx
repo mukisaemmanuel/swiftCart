@@ -305,25 +305,25 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl text-white overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl w-full max-w-[calc(100vw-1rem)] sm:max-w-lg shadow-2xl text-white overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[85dvh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/90">
+        <div className="p-3.5 sm:p-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/90 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-orange-600/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
-              <Sparkles className="w-5 h-5 animate-pulse" />
+            <div className="w-8 h-8 rounded-xl bg-orange-600/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+              <Sparkles className="w-4 h-4 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-sm sm:text-base text-white">
                   Gemini 3.8 Live Voice
                 </h3>
-                <span className="text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">
+                <span className="text-[9px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">
                   Real-time
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Bidirectional voice assistant for Busia, Busitema & Jinja shopping
+              <p className="text-[10px] sm:text-[11px] text-slate-400">
+                Bidirectional voice assistant for Ugandan shopping
               </p>
             </div>
           </div>
@@ -336,15 +336,15 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
                   onClose();
                   onOpenTextChat();
                 }}
-                className="text-xs px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-colors"
-                title="Switch to Text Chat"
+                className="text-xs px-2.5 py-1 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-colors shadow-xs"
+                title="Switch to Smart Text Chat"
               >
                 Text Chat
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -352,7 +352,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
         </div>
 
         {/* Live Status Banner */}
-        <div className="px-5 py-2.5 bg-slate-950/60 border-b border-slate-800/60 flex items-center justify-between text-xs">
+        <div className="px-4 py-2 bg-slate-950/60 border-b border-slate-800/60 flex items-center justify-between text-xs shrink-0">
           <div className="flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
@@ -367,7 +367,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
                   : 'bg-rose-500'
               }`}
             />
-            <span className="font-semibold text-slate-300">
+            <span className="font-semibold text-slate-300 text-[11px]">
               {connectionStatus === 'connected'
                 ? isModelSpeaking
                   ? 'Gemini is speaking...'
@@ -375,142 +375,155 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
                   ? 'Mic Muted (Click Mic to speak)'
                   : 'Listening to your voice...'
                 : connectionStatus === 'connecting'
-                ? 'Connecting to Gemini Live API...'
+                ? 'Connecting to Gemini Live...'
                 : connectionStatus === 'error'
-                ? 'Connection Issue'
+                ? 'Voice Server Offline'
                 : 'Session Closed'}
             </span>
           </div>
 
-          <span className="text-[10px] text-slate-500 font-mono">
-            gemini-3.8-live (16kHz in / 24kHz out)
+          <span className="text-[9px] text-slate-500 font-mono">
+            gemini-3.8-live
           </span>
         </div>
 
-        {/* Central Visualizer & Interactive Waves */}
-        <div className="p-6 flex flex-col items-center justify-center text-center space-y-4 bg-linear-to-b from-slate-900 to-slate-950">
-          {/* Animated Pulsing Ring & Audio Canvas */}
-          <div className="relative w-44 h-44 flex items-center justify-center">
-            {/* Glowing Backdrop */}
-            <div
-              className={`absolute inset-0 rounded-full blur-xl opacity-40 transition-colors duration-500 ${
-                isModelSpeaking
-                  ? 'bg-sky-500'
-                  : isMuted
-                  ? 'bg-slate-700'
-                  : 'bg-orange-600'
-              }`}
-            />
+        {/* Scrollable Modal Body */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Central Visualizer & Interactive Waves */}
+          <div className="p-4 sm:p-5 flex flex-col items-center justify-center text-center space-y-3 bg-linear-to-b from-slate-900 to-slate-950">
+            {/* Animated Pulsing Ring & Audio Canvas */}
+            <div className="relative w-32 h-32 flex items-center justify-center">
+              {/* Glowing Backdrop */}
+              <div
+                className={`absolute inset-0 rounded-full blur-xl opacity-40 transition-colors duration-500 ${
+                  isModelSpeaking
+                    ? 'bg-sky-500'
+                    : isMuted
+                    ? 'bg-slate-700'
+                    : 'bg-orange-600'
+                }`}
+              />
 
-            {/* Orbiting Ring */}
-            <div className="absolute inset-2 rounded-full border border-slate-700/80 animate-spin" style={{ animationDuration: '14s' }} />
+              {/* Orbiting Ring */}
+              <div className="absolute inset-2 rounded-full border border-slate-700/80 animate-spin" style={{ animationDuration: '14s' }} />
 
-            {/* Canvas for real-time waveform bars */}
-            <canvas
-              ref={canvasRef}
-              width={140}
-              height={80}
-              className="absolute z-10 pointer-events-none"
-            />
+              {/* Canvas for real-time waveform bars */}
+              <canvas
+                ref={canvasRef}
+                width={100}
+                height={60}
+                className="absolute z-10 pointer-events-none"
+              />
 
-            {/* Central Icon Button */}
-            <div
-              className={`w-20 h-20 rounded-full flex items-center justify-center z-20 shadow-2xl transition-all duration-300 ${
-                isModelSpeaking
-                  ? 'bg-sky-500 text-white ring-4 ring-sky-400/40 scale-105'
-                  : isMuted
-                  ? 'bg-slate-800 text-slate-400 ring-2 ring-slate-700'
-                  : 'bg-orange-600 text-white ring-4 ring-orange-500/40'
-              }`}
-            >
-              {isModelSpeaking ? (
-                <Volume2 className="w-9 h-9 animate-bounce" />
-              ) : isMuted ? (
-                <MicOff className="w-8 h-8" />
-              ) : (
-                <Mic className="w-8 h-8" />
+              {/* Central Icon Button */}
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center z-20 shadow-2xl transition-all duration-300 ${
+                  isModelSpeaking
+                    ? 'bg-sky-500 text-white ring-4 ring-sky-400/40 scale-105'
+                    : isMuted
+                    ? 'bg-slate-800 text-slate-400 ring-2 ring-slate-700'
+                    : 'bg-orange-600 text-white ring-4 ring-orange-500/40'
+                }`}
+              >
+                {isModelSpeaking ? (
+                  <Volume2 className="w-7 h-7 animate-bounce" />
+                ) : isMuted ? (
+                  <MicOff className="w-6 h-6" />
+                ) : (
+                  <Mic className="w-6 h-6" />
+                )}
+              </div>
+            </div>
+
+            {/* Quick Voice Prompt Suggestions */}
+            <div className="w-full space-y-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
+                <Radio className="w-3 h-3 text-orange-400" /> Try speaking or clicking:
+              </span>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {[
+                  'Best laptops for students in Kampala?',
+                  'How fast is nationwide delivery in Uganda?',
+                  'How does the 100% Prepaid MoMo Escrow work?',
+                  'Are warranty repairs handled locally?',
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSendPromptText(suggestion)}
+                    disabled={connectionStatus !== 'connected'}
+                    className="text-[10px] sm:text-[11px] px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 hover:text-orange-300 text-slate-300 transition-colors border border-slate-700/60 disabled:opacity-50"
+                  >
+                    "{suggestion}"
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Voice Connection Notice / Fallback to Text */}
+          {errorMessage && (
+            <div className="mx-4 my-2.5 p-3 rounded-2xl bg-slate-800/90 border border-orange-500/40 text-xs text-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-white block">Real-time Audio Offline</span>
+                  <span className="text-[11px] text-slate-300">
+                    Live bidirectional audio requires an active WebSocket server. Switch to Smart Text Assistant for instant answers!
+                  </span>
+                </div>
+              </div>
+              {onOpenTextChat && (
+                <button
+                  onClick={() => {
+                    stopLiveSession();
+                    onClose();
+                    onOpenTextChat();
+                  }}
+                  className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shrink-0 shadow-md transition-colors"
+                >
+                  Open Text Chat
+                </button>
               )}
             </div>
-          </div>
+          )}
 
-          {/* Quick Voice Prompt Suggestions */}
-          <div className="w-full space-y-1.5 pt-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
-              <Radio className="w-3 h-3 text-orange-400" /> Try speaking or clicking:
-            </span>
-            <div className="flex flex-wrap gap-1.5 justify-center">
-              {[
-                'Best laptops for Busitema University students?',
-                'How fast is delivery to Dabani Hospital or Customs?',
-                'How does the 100% Prepaid MoMo Escrow work?',
-                'Are there fresh fish packages from Majanji Port?',
-              ].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => handleSendPromptText(suggestion)}
-                  disabled={connectionStatus !== 'connected'}
-                  className="text-[11px] px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 hover:text-orange-300 text-slate-300 transition-colors border border-slate-700/60 disabled:opacity-50"
-                >
-                  "{suggestion}"
-                </button>
-              ))}
+          {/* Live Conversation Transcript Feed */}
+          <div className="px-4 py-3 border-t border-slate-800 bg-slate-950/40 space-y-2 text-xs">
+            <div className="flex items-center justify-between text-[10px] text-slate-500 pb-1 font-bold">
+              <span>CONVERSATION TRANSCRIPT</span>
+              <span className="text-orange-400">Continuous 2-Way Audio</span>
             </div>
-          </div>
-        </div>
 
-        {/* Live Conversation Transcript Feed */}
-        <div className="flex-1 overflow-y-auto px-5 py-3 border-t border-slate-800 bg-slate-950/40 space-y-2.5 max-h-48 text-xs">
-          <div className="flex items-center justify-between text-[10px] text-slate-500 pb-1 font-bold">
-            <span>LIVE CONVERSATION TRANSCRIPT</span>
-            <span className="text-orange-400">Continuous 2-Way Audio</span>
-          </div>
-
-          {transcripts.map((t, idx) => (
-            <div
-              key={idx}
-              className={`p-2.5 rounded-2xl ${
-                t.role === 'ai'
-                  ? 'bg-slate-900 border border-slate-800 text-slate-200 ml-0 mr-4'
-                  : 'bg-orange-950/50 border border-orange-800/40 text-orange-200 ml-4 mr-0'
-              }`}
-            >
-              <div className="flex items-center gap-1.5 font-bold mb-0.5 text-[10px] text-slate-400">
-                {t.role === 'ai' ? (
-                  <Sparkles className="w-3 h-3 text-sky-400" />
-                ) : (
-                  <Mic className="w-3 h-3 text-orange-400" />
-                )}
-                <span>{t.role === 'ai' ? 'Gemini 3.8 Live' : 'You (Spoken)'}</span>
+            {transcripts.map((t, idx) => (
+              <div
+                key={idx}
+                className={`p-2.5 rounded-2xl ${
+                  t.role === 'ai'
+                    ? 'bg-slate-900 border border-slate-800 text-slate-200 ml-0 mr-4'
+                    : 'bg-orange-950/50 border border-orange-800/40 text-orange-200 ml-4 mr-0'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold mb-0.5 text-[10px] text-slate-400">
+                  {t.role === 'ai' ? (
+                    <Sparkles className="w-3 h-3 text-sky-400" />
+                  ) : (
+                    <Mic className="w-3 h-3 text-orange-400" />
+                  )}
+                  <span>{t.role === 'ai' ? 'Gemini 3.8 Live' : 'You (Spoken)'}</span>
+                </div>
+                <p className="leading-relaxed text-[11px]">{t.text}</p>
               </div>
-              <p className="leading-relaxed">{t.text}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Error message callout */}
-        {errorMessage && (
-          <div className="mx-5 my-2 p-3 rounded-2xl bg-rose-950/70 border border-rose-800/60 text-rose-200 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="font-bold block">Voice Connection Notice:</span>
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              onClick={startLiveSession}
-              className="text-xs font-bold underline text-rose-300 hover:text-white shrink-0"
-            >
-              Retry
-            </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Footer Controls */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-3">
+        <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-2.5 shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsMuted(!isMuted)}
               disabled={connectionStatus !== 'connected'}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+              className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                 isMuted
                   ? 'bg-amber-600 hover:bg-amber-500 text-white'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
@@ -518,11 +531,11 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             >
               {isMuted ? (
                 <>
-                  <MicOff className="w-4 h-4" /> Unmute Mic
+                  <MicOff className="w-3.5 h-3.5" /> Unmute
                 </>
               ) : (
                 <>
-                  <Mic className="w-4 h-4" /> Mute Mic
+                  <Mic className="w-3.5 h-3.5" /> Mute
                 </>
               )}
             </button>
@@ -530,9 +543,10 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             {connectionStatus === 'error' && (
               <button
                 onClick={startLiveSession}
-                className="px-3 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
+                className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                title="Retry connecting to audio server"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Reconnect
+                <RotateCcw className="w-3.5 h-3.5" /> Retry
               </button>
             )}
           </div>
@@ -542,12 +556,14 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
               stopLiveSession();
               onClose();
             }}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-900/60 hover:text-rose-200 text-slate-300 font-bold text-xs transition-colors"
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-900/60 hover:text-rose-200 text-slate-300 font-bold text-xs transition-colors"
           >
-            End Conversation
+            Close
           </button>
         </div>
       </div>
     </div>
   );
 };
+
+export default GeminiLiveVoiceModal;

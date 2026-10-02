@@ -66,31 +66,31 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
   const slide = slides[currentSlide];
 
   return (
-    <div className="relative rounded-3xl overflow-hidden shadow-lg bg-linear-to-r text-white mb-6">
-      <div className={`p-6 sm:p-10 bg-linear-to-r ${slide.bgGradient} transition-all duration-700`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          <div className="space-y-4 max-w-lg">
-            <span className="inline-block text-[11px] sm:text-xs font-black uppercase tracking-wider bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white shadow-xs">
+    <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg bg-linear-to-r text-white mb-5 sm:mb-6 w-full max-w-full">
+      <div className={`p-4 sm:p-8 md:p-10 bg-linear-to-r ${slide.bgGradient} transition-all duration-700`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-center">
+          <div className="space-y-3 sm:space-y-4 max-w-lg">
+            <span className="inline-block text-[10px] sm:text-xs font-black uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-white shadow-xs">
               {slide.badge}
             </span>
-            <h2 className="text-2xl sm:text-4xl font-black leading-tight tracking-tight">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-black leading-snug tracking-tight">
               {slide.title}
             </h2>
-            <p className="text-xs sm:text-sm text-white/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-white/90 leading-relaxed line-clamp-2 sm:line-clamp-none">
               {slide.subtitle}
             </p>
-            <div className="pt-2 flex flex-wrap gap-3">
+            <div className="pt-1 sm:pt-2 flex flex-wrap gap-2 sm:gap-3">
               <button
                 onClick={() => onSelectCategory(slide.category)}
-                className="px-6 py-3 bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-2"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-slate-900 hover:bg-slate-100 font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 sm:gap-2 cursor-pointer"
               >
                 <span>{slide.cta}</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               <button
                 onClick={onOpenSellerOnboarding}
-                className="px-5 py-3 bg-black/20 hover:bg-black/30 backdrop-blur-xs text-white border border-white/30 font-bold text-xs sm:text-sm rounded-xl transition-all"
+                className="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-black/20 hover:bg-black/30 backdrop-blur-xs text-white border border-white/30 font-bold text-xs sm:text-sm rounded-xl transition-all cursor-pointer"
               >
                 Sell on SwiftCart
               </button>

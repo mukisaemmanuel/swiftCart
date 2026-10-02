@@ -24,6 +24,7 @@ import { DemoSwitcherModal } from './components/DemoSwitcherModal';
 import { NotificationModal } from './components/NotificationModal';
 import { GeminiChatModal } from './components/GeminiChatModal';
 import { GeminiLiveVoiceModal } from './components/GeminiLiveVoiceModal';
+import { initAutoRefreshOnDeploy } from './utils/autoRefresh';
 import {
   Zap,
   ShieldCheck,
@@ -62,24 +63,47 @@ function MarketplaceApp() {
   const [isGeminiChatOpen, setIsGeminiChatOpen] = useState(false);
   const [isGeminiVoiceOpen, setIsGeminiVoiceOpen] = useState(false);
 
-  const loadMarketplaceData = async () => {
-    try {
-      await dbService.initDatabase();
-      const [prods, sllrs] = await Promise.all([
-        dbService.getProducts(),
-        dbService.getSellers(),
-      ]);
-      if (prods && prods.length > 0) setProducts(prods);
-      if (sllrs && sllrs.length > 0) setSellers(sllrs);
-    } catch (err) {
-      console.warn('Marketplace initial data sync note:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadMarketplaceData();
+    // 1. Automatic reload when new build or code update is deployed to Firebase Hosting
+    const cleanupAutoRefresh = initAutoRefreshOnDeploy(30000);
+
+    // 2. Real-time automatic data synchronization from Cloud Firestore
+    let unsubProducts: (() => void) | null = null;
+    let unsubSellers: (() => void) | null = null;
+
+    const setupLiveMarketplace = async () => {
+      try {
+        await dbService.initDatabase();
+
+        // Initial fetch
+        const [prods, sllrs] = await Promise.all([
+          dbService.getProducts(),
+          dbService.getSellers(),
+        ]);
+        if (prods && prods.length > 0) setProducts(prods);
+        if (sllrs && sllrs.length > 0) setSellers(sllrs);
+
+        // Real-time live listener for products (auto-refreshes when any seller adds/modifies items)
+        unsubProducts = dbService.subscribeToProducts((liveProds) => {
+          if (liveProds && liveProds.length > 0) {
+            setProducts(liveProds);
+          }
+        });
+
+        // Real-time live listener for sellers (auto-refreshes when merchants register or get verified)
+        unsubSellers = dbService.subscribeToSellers((liveSellers) => {
+          if (liveSellers && liveSellers.length > 0) {
+            setSellers(liveSellers);
+          }
+        });
+      } catch (err) {
+        console.warn('Marketplace initial data sync note:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    setupLiveMarketplace();
 
     // Check URL parameters for Pesapal payment callback redirect
     const params = new URLSearchParams(window.location.search);
@@ -98,6 +122,12 @@ function MarketplaceApp() {
         dbService.updateOrderPaymentStatus(orderRef || orderTrackingId, 'paid');
       }
     }
+
+    return () => {
+      cleanupAutoRefresh();
+      if (unsubProducts) unsubProducts();
+      if (unsubSellers) unsubSellers();
+    };
   }, []);
 
   // Filter products by Category, Seller, Search Query, and Express status
@@ -132,7 +162,7 @@ function MarketplaceApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200 w-full max-w-full overflow-x-hidden relative">
       {/* Header */}
       <Header
         currentCategory={selectedCategory}
@@ -151,9 +181,9 @@ function MarketplaceApp() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16 md:pb-8">
+      <main className="flex-1 pb-20 md:pb-8 w-full max-w-full overflow-x-hidden">
         {currentView === 'storefront' && (
-          <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-4 py-4 sm:py-6 w-full max-w-full">
             {/* Top Carousel Banner */}
             <BannerCarousel
               onSelectCategory={(cat) => {
@@ -164,44 +194,44 @@ function MarketplaceApp() {
             />
 
             {/* Ugandan Value Props Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
-                  <Zap className="w-5 h-5 fill-orange-600 dark:fill-orange-400" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-5 sm:mb-6">
+              <div className="bg-white dark:bg-slate-900 p-2.5 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-3 transition-colors min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 fill-orange-600 dark:fill-orange-400" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Swift Express</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Fast Doorstep Delivery</p>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Verified Sellers</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">KYC & URSB audited</p>
+                <div className="min-w-0">
+                  <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate">Swift Express</h4>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Fast Doorstep Delivery</p>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-5 h-5" />
+              <div className="bg-white dark:bg-slate-900 p-2.5 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-3 transition-colors min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Instant MoMo Escrow</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Instant MoMo Escrow (MTN & Airtel)</p>
+                <div className="min-w-0">
+                  <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate">Verified Sellers</h4>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">KYC & URSB audited</p>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <RotateCcw className="w-5 h-5" />
+              <div className="bg-white dark:bg-slate-900 p-2.5 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-3 transition-colors min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Easy Returns</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">7 days protection</p>
+                <div className="min-w-0">
+                  <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate">Instant MoMo Escrow</h4>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">MTN & Airtel Protection</p>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-2.5 sm:p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-2.5 sm:gap-3 transition-colors min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white truncate">Easy Returns</h4>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">7 days protection</p>
                 </div>
               </div>
             </div>
@@ -216,9 +246,9 @@ function MarketplaceApp() {
             />
 
             {/* Filter Bar & Options */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs mb-5 space-y-3 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs mb-5 space-y-3 transition-colors w-full max-w-full overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 shrink-0">
                     <Filter className="w-3.5 h-3.5" /> Options:
                   </span>
@@ -461,11 +491,11 @@ function MarketplaceApp() {
       </footer>
 
       {/* Floating Gemini AI Assistant Widget */}
-      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div className="bg-slate-900 text-white rounded-2xl p-1.5 shadow-2xl border border-slate-800 flex items-center gap-1.5">
+      <div className="fixed bottom-16 md:bottom-6 right-2.5 sm:right-6 z-30 flex items-center gap-1.5 sm:gap-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-1 sm:p-1.5 shadow-2xl border border-slate-800 flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={() => setIsGeminiChatOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md transition-all group"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md transition-all group"
             title="Chat with SwiftCart Gemini AI"
           >
             <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />

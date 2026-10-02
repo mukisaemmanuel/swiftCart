@@ -50,14 +50,11 @@ export async function generateClientSideGemini(params: ClientChatParams): Promis
     apiKey,
   });
 
-  let selectedModel = 'gemini-2.5-flash';
-  if (modelType === 'complex') {
-    selectedModel = 'gemini-2.5-pro';
-  } else if (modelType === 'fast') {
-    selectedModel = 'gemini-2.5-flash';
-  } else {
-    selectedModel = 'gemini-2.5-flash';
-  }
+  // Candidates prioritized for Google GenAI SDK (gemini-3.8-flash is the primary model for new API keys)
+  const candidateModels =
+    modelType === 'complex'
+      ? ['gemini-3.8-pro', 'gemini-3.8-flash', 'gemini-3.5-flash']
+      : ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
   const contents = messages.map((m) => ({
     role: m.role === 'user' ? 'user' : 'model',
@@ -71,18 +68,58 @@ export async function generateClientSideGemini(params: ClientChatParams): Promis
   const isSearchRequested = useSearchGrounding || modelType === 'general';
   const tools = isSearchRequested ? [{ googleSearch: {} }] : undefined;
 
-  const response = await ai.models.generateContent({
-    model: selectedModel,
-    contents,
-    config: {
-      systemInstruction,
-      tools,
-    },
-  });
+  let lastError: any = null;
+  let successfulResponse: any = null;
+  let modelUsed = candidateModels[0];
 
-  const text = response.text || 'No response generated.';
+  for (const model of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+          systemInstruction,
+          tools,
+        },
+      });
+      if (response && (response.text || response.candidates?.length)) {
+        successfulResponse = response;
+        modelUsed = model;
+        break;
+      }
+    } catch (err: any) {
+      console.warn(`Gemini generation failed for model ${model}:`, err?.message || err);
+      lastError = err;
+      // If error is related to tools or search grounding, retry without tools
+      if (tools) {
+        try {
+          const fallbackResp = await ai.models.generateContent({
+            model,
+            contents,
+            config: {
+              systemInstruction,
+            },
+          });
+          if (fallbackResp && (fallbackResp.text || fallbackResp.candidates?.length)) {
+            successfulResponse = fallbackResp;
+            modelUsed = model;
+            break;
+          }
+        } catch (toolFallbackErr) {
+          lastError = toolFallbackErr;
+        }
+      }
+    }
+  }
+
+  if (!successfulResponse) {
+    const errMsg = lastError?.message || String(lastError || 'Unknown AI error');
+    throw new Error(`AI Shopping Assistant is currently unavailable: ${errMsg}`);
+  }
+
+  const text = successfulResponse.text || 'No response generated.';
   const groundingChunks =
-    response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    successfulResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
   const searchSources = groundingChunks
     .map((chunk: any) => {
@@ -98,7 +135,7 @@ export async function generateClientSideGemini(params: ClientChatParams): Promis
 
   return {
     text,
-    model: selectedModel,
+    model: modelUsed,
     roleType,
     searchSources,
   };
