@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dbService } from '../services/db';
-import { UGANDA_DISTRICTS } from '../data/seedData';
+import { auth } from '../lib/firebase';
 import { UserRole } from '../types';
-import { X, Lock, Mail, Phone, User as UserIcon, Store, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Lock, Mail, Phone, User as UserIcon, AlertCircle, CheckCircle2, Store, ArrowRight } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,29 +11,25 @@ interface AuthModalProps {
   initialMode?: 'login' | 'register';
   defaultRole?: 'buyer' | 'seller';
   onAuthSuccess?: (role: UserRole) => void;
+  onOpenApplyToSell?: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   initialMode = 'login',
-  defaultRole = 'buyer',
   onAuthSuccess,
+  onOpenApplyToSell,
 }) => {
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
-  const [role, setRole] = useState<'buyer' | 'seller'>(defaultRole);
 
-  // Form states
+  // Form states (Buyer Registration & Universal Login)
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [storeName, setStoreName] = useState('');
-  const [district, setDistrict] = useState(UGANDA_DISTRICTS[0]);
-  const [address, setAddress] = useState('');
-  const [bio, setBio] = useState('');
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -62,7 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (foundUser && onAuthSuccess) {
         onAuthSuccess(foundUser.role);
       } else if (onAuthSuccess) {
-        onAuthSuccess('buyer');
+        onAuthSuccess('BUYER');
       }
       onClose();
     } else {
@@ -75,28 +71,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     setSubmitting(true);
 
-    if (role === 'seller' && !storeName.trim()) {
-      setErrorMsg('Store Name is required for seller onboarding.');
-      setSubmitting(false);
-      return;
-    }
-
     const res = await register({
       name,
       email,
       phone,
-      role,
+      role: 'BUYER',
       password,
-      storeName: role === 'seller' ? storeName : undefined,
-      district: role === 'seller' ? district : undefined,
-      address: role === 'seller' ? address : undefined,
-      bio: role === 'seller' ? bio : undefined,
     });
 
     setSubmitting(false);
     if (res.success) {
       if (onAuthSuccess) {
-        onAuthSuccess(role);
+        onAuthSuccess('BUYER');
       }
       onClose();
     } else {
@@ -114,17 +100,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               SwiftCart Uganda
             </span>
             <h3 className="text-xl font-bold mt-1">
-              {isLogin ? 'Sign In to Your Account' : 'Create SwiftCart Account'}
+              {isLogin ? 'Sign In to Your Account' : 'Create Customer Account'}
             </h3>
             <p className="text-xs text-orange-100">
               {isLogin
-                ? 'Shop thousands of items with fast delivery in Uganda'
-                : 'Join buyers and top merchants across Uganda'}
+                ? 'Access your orders, saved items, or portal dashboard'
+                : 'Enjoy express shopping and verified orders nationwide'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -138,7 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setIsLogin(true);
               setErrorMsg(null);
             }}
-            className={`flex-1 py-3 text-sm font-semibold text-center border-b-2 transition-colors ${
+            className={`flex-1 py-3 text-sm font-semibold text-center border-b-2 transition-colors cursor-pointer ${
               isLogin
                 ? 'border-orange-600 text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -152,7 +138,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setIsLogin(false);
               setErrorMsg(null);
             }}
-            className={`flex-1 py-3 text-sm font-semibold text-center border-b-2 transition-colors ${
+            className={`flex-1 py-3 text-sm font-semibold text-center border-b-2 transition-colors cursor-pointer ${
               !isLogin
                 ? 'border-orange-600 text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-900'
                 : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -216,53 +202,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
               >
                 {submitting ? 'Signing in...' : 'Sign In'}
               </button>
 
               <div className="pt-2 text-center">
                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Want to test quickly? Use the{' '}
+                  Want to test accounts quickly? Use the{' '}
                   <span className="text-orange-600 dark:text-orange-400 font-semibold cursor-pointer underline">
-                    Quick Persona Switcher
+                    Persona Switcher
                   </span>{' '}
-                  on top.
+                  in the header.
                 </span>
               </div>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  I want to register as:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRole('buyer')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      role === 'buyer'
-                        ? 'border-orange-600 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <UserIcon className="w-4 h-4" /> Buyer (Shopper)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('seller')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      role === 'seller'
-                        ? 'border-orange-600 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <Store className="w-4 h-4" /> Merchant / Seller
-                  </button>
-                </div>
-              </div>
-
+            <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Full Name / Contact Person
@@ -333,86 +289,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              {/* Seller specific fields */}
-              {role === 'seller' && (
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-orange-50/50 dark:bg-orange-950/30 p-3 rounded-xl border border-orange-200/50 dark:border-orange-800/40">
-                  <div className="flex items-center gap-1.5 text-orange-800 dark:text-orange-300 text-xs font-bold">
-                    <Store className="w-4 h-4" /> Store & Business Information
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Store Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={storeName}
-                      onChange={(e) => setStoreName(e.target.value)}
-                      placeholder="e.g. Busia Tech & Gadgets"
-                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Primary District
-                    </label>
-                    <div className="relative">
-                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      <select
-                        value={district}
-                        onChange={(e) => setDistrict(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
-                      >
-                        {UGANDA_DISTRICTS.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Physical Shop / Warehouse Address
-                    </label>
-                    <input
-                      type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="e.g. Customs Way, Busia Town"
-                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Store Bio / Description
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Tell customers what products you specialize in..."
-                      className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                </div>
-              )}
-
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
               >
-                {submitting
-                  ? 'Creating account...'
-                  : role === 'seller'
-                  ? 'Complete Seller Registration'
-                  : 'Create Buyer Account'}
+                {submitting ? 'Creating account...' : 'Create Account'}
               </button>
+
+              {/* Merchant Apply notice */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Are you a business owner looking to sell?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenApplyToSell) {
+                      onOpenApplyToSell();
+                    }
+                  }}
+                  className="mt-1 text-xs font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                >
+                  <Store className="w-3.5 h-3.5" />
+                  <span>Apply to Become a Verified Merchant</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </form>
           )}
         </div>

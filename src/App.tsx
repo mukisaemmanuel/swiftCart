@@ -503,49 +503,59 @@ function MarketplaceApp() {
         {currentView === 'sell' && (
           <div className="max-w-4xl mx-auto px-4 py-12 text-center space-y-8 animate-in fade-in duration-300">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center mx-auto text-orange-600 dark:text-orange-400 shadow-xl">
-              <Building2 className="w-8 h-8 sm:w-10 sm:h-10" />
+              <Store className="w-8 h-8 sm:w-10 sm:h-10" />
             </div>
 
             <div className="space-y-3 max-w-2xl mx-auto">
               <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
-                Merchant Application Gateway
+                Merchant Onboarding Desk
               </span>
               <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
-                Partner with SwiftCart Uganda
+                Sell Your Products on SwiftCart Uganda
               </h1>
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-                To protect our buyers and deliver a premium marketplace experience, SwiftCart admits merchants through a verified application process. Submit your store inquiry below to get vetted.
+                To protect our buyers and maintain verified merchant authenticity, all seller onboarding is handled directly through our Administration Desk. Contact the admin via WhatsApp or phone call to receive the official registration form.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left max-w-3xl mx-auto">
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center font-black text-sm">1</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Submit KYC Details</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Provide business registration name, district, and contact phone number.</p>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Contact Administration</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Reach out via WhatsApp (+256 700 123 456) or call our merchant desk to discuss your store.</p>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center font-black text-sm">2</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Admin Audit & Verification</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Operations and Super Admin teams review merchant credibility and product category.</p>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Receive & Fill Official Form</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Admin sends you the official registration and KYC document packet directly.</p>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-black text-sm">3</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Role Upgrade to SELLER</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Receive merchant portal access at <code>/seller/dashboard</code> and begin listing products.</p>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Account Provisioning</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Receive merchant credentials, access <code>/seller/dashboard</code>, and start selling.</p>
               </div>
             </div>
 
             <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-              <button
-                onClick={() => setIsApplyToSellOpen(true)}
-                className="px-8 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-black text-sm rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              <a
+                href="https://wa.me/256700123456?text=Hello%20SwiftCart%20Admin%2C%20I%20am%20a%20merchant%20interested%20in%20selling%20on%20SwiftCart%20Uganda.%20Kindly%20send%20me%20the%20official%20merchant%20onboarding%20and%20KYC%20registration%20form."
+                target="_blank"
+                rel="noreferrer"
+                className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
               >
-                <FileCheck2 className="w-5 h-5" />
-                <span>Open Application Form</span>
-              </button>
+                <span>Chat on WhatsApp (+256 700 123 456)</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+
+              <a
+                href="tel:+256700000001"
+                className="px-6 py-3.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 font-bold text-sm rounded-2xl transition-colors flex items-center gap-2"
+              >
+                <span>Call Onboarding Desk</span>
+              </a>
+
               <button
                 onClick={() => handleNavigate('storefront')}
                 className="px-6 py-3.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-2xl transition-colors cursor-pointer"
@@ -754,6 +764,7 @@ function MarketplaceApp() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         defaultRole={authDefaultRole}
+        onOpenApplyToSell={() => setIsApplyToSellOpen(true)}
         onAuthSuccess={(role) => {
           const upper = (role || '').toUpperCase();
           if (upper === 'SUPER_ADMIN') {
