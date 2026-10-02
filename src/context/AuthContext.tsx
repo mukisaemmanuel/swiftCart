@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -10,6 +10,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { User, Seller, UserRole } from '../types';
 import { dbService, withTimeout } from '../services/db';
+import { SEED_USERS, SEED_SELLERS } from '../data/seedData';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -46,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLiveAuth, setIsLiveAuth] = useState<boolean>(false);
+  const isDemoRef = useRef<boolean>(false);
 
   const roleStr = (currentUser?.role || '').toUpperCase();
   const isBuyer = !currentUser || roleStr === 'BUYER';
@@ -67,8 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!user) {
-        // Fallback check in case the user ID is mapped through users collection query
         user = await dbService.getUserById(userId);
+      }
+
+      if (!user) {
+        const seedUser = SEED_USERS.find((u) => u.id === userId || u.email === userId);
+        if (seedUser) {
+          user = seedUser;
+        }
       }
 
       if (!user) {
@@ -81,9 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
       setIsLiveAuth(isLive);
 
-      // If user is a merchant, load seller profile from Firestore
-      const userRoleLower = (user.role || '').toLowerCase();
-      if (userRoleLower === 'seller') {
+      // If user is a merchant, load seller profile
+      const userRoleUpper = (user.role || '').toUpperCase();
+      if (userRoleUpper === 'SELLER') {
         let seller: Seller | null = null;
         try {
           const sellerSnap = await withTimeout(getDoc(doc(db, 'sellers', user.id)), 6000);
@@ -101,6 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!seller) {
           seller = await dbService.getSellerById(user.id);
+        }
+
+        if (!seller) {
+          seller = SEED_SELLERS.find((s) => s.userId === user.id || s.id === user.id) || SEED_SELLERS[0];
         }
 
         setCurrentSeller(seller || null);
@@ -126,11 +138,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Database initialization error:', err);
       }
 
+      // Check if user had a saved demo persona in this browser tab session
+      const savedDemoId = typeof window !== 'undefined' ? sessionStorage.getItem('swiftcart_demo_user_id') : null;
+      if (savedDemoId) {
+        const seedUser = SEED_USERS.find((u) => u.id === savedDemoId || u.email === savedDemoId);
+        if (seedUser) {
+          isDemoRef.current = true;
+          setCurrentUser(seedUser);
+          setIsLiveAuth(false);
+          const roleUpper = (seedUser.role || '').toUpperCase();
+          if (roleUpper === 'SELLER') {
+            const seedSeller = SEED_SELLERS.find((s) => s.userId === seedUser.id || s.id === seedUser.id) || SEED_SELLERS[0];
+            setCurrentSeller(seedSeller);
+          } else {
+            setCurrentSeller(null);
+          }
+          setIsLoading(false);
+        }
+      }
+
       try {
         unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
           if (fbUser) {
+            isDemoRef.current = false;
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('swiftcart_demo_user_id');
+            }
             await loadUserAndSeller(fbUser.uid, true);
-          } else {
+          } else if (!isDemoRef.current) {
             setCurrentUser(null);
             setCurrentSeller(null);
             setIsLiveAuth(false);
@@ -152,17 +187,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchUser = async (userId: string) => {
     if (!userId || userId === 'guest') {
+      isDemoRef.current = false;
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('swiftcart_demo_user_id');
+      }
       await logout();
       return;
     }
-    setIsLoading(true);
-    try {
-      if (auth.currentUser) {
-        await signOut(auth);
-      }
-    } catch {
-      // Ignore
+
+    isDemoRef.current = true;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('swiftcart_demo_user_id', userId);
     }
+    setIsLoading(true);
+
+    const seedUser = SEED_USERS.find((u) => u.id === userId || u.email === userId);
+    if (seedUser) {
+      setCurrentUser(seedUser);
+      setIsLiveAuth(false);
+      const roleUpper = (seedUser.role || '').toUpperCase();
+      if (roleUpper === 'SELLER') {
+        const seedSeller = SEED_SELLERS.find((s) => s.userId === seedUser.id || s.id === seedUser.id) || SEED_SELLERS[0];
+        setCurrentSeller(seedSeller);
+      } else {
+        setCurrentSeller(null);
+      }
+      setIsLoading(false);
+      return;
+    }
+
     await loadUserAndSeller(userId, false);
     setIsLoading(false);
   };
@@ -219,6 +272,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (createErr: any) {
             console.error('Error auto-provisioning admin:', createErr);
           }
+        }
+
+        // Fallback for seed demo accounts if Firebase Auth user does not exist or fails
+        const seedUser = SEED_USERS.find(
+          (u) =>
+            u.email.toLowerCase() === emailLower ||
+            (emailLower === 'superadmin@swiftcart.ug' && (u.id === 'user_superadmin_1' || u.role === 'SUPER_ADMIN')) ||
+            (emailLower === 'admin@swiftcart.ug' && (u.id === 'user_admin_1' || u.role === 'ADMIN')) ||
+            (emailLower === 'seller@swiftcart.ug' && (u.id === 'user_seller_1' || u.role === 'SELLER')) ||
+            (emailLower === 'buyer@swiftcart.ug' && (u.id === 'user_buyer_1' || u.role === 'BUYER'))
+        );
+        if (seedUser) {
+          await switchUser(seedUser.id);
+          return { success: true };
         }
 
         if (fbErr?.code === 'auth/wrong-password' || fbErr?.code === 'auth/invalid-credential') {

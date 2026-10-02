@@ -199,9 +199,20 @@ export interface SellerPackage {
 
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
 
-export type PaymentMethod = 'mobile_money';
-export type PaymentProvider = 'mtn_momo' | 'airtel_money';
+export type PaymentMethod = 'mobile_money' | 'card' | 'bank_transfer' | 'pay_on_delivery';
+export type PaymentProvider = 'mtn_momo' | 'airtel_money' | 'visa_mastercard' | 'bank_eft' | 'cash_border';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+
+export interface PlatformFeatureSettings {
+  enableExpressDelivery: boolean;
+  enableGeminiAI: boolean;
+  enableCardPayments: boolean;
+  enableBankTransfer: boolean;
+  enablePayOnDelivery: boolean;
+  enableBorderCustomsCollection: boolean;
+  enableAutomatedKYC: boolean;
+  enableInstantSMSReceipts: boolean;
+}
 
 export interface DeliveryAddress {
   fullName: string;
@@ -253,7 +264,47 @@ export interface Order {
   paymentReference?: string;
   paymentStatus: PaymentStatus;
   status: OrderStatus;
+  riderDetails?: RiderHandoverDetails;
   trackingHistory: OrderTrackingStep[];
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface RiderHandoverDetails {
+  riderName: string;
+  riderNIN: string;
+  riderPhone: string;
+  plateNumber: string;
+  stageOrCompany?: string;
+  handoverOTP: string;
+  isOTPVerified: boolean;
+  dispatchedAt: string;
+}
+
+export type EscrowState = 'HELD' | 'RELEASED' | 'REFUNDED';
+
+export interface EscrowLedgerRecord {
+  id: string;
+  escrowId: string;
+  orderId: string;
+  buyerPhone: string;
+  sellerId: string;
+  sellerStoreName: string;
+  amountUGX: number;
+  commissionUGX: number;
+  netPayoutUGX: number;
+  courierFeeUGX: number;
+  escrowState: EscrowState;
+  paymentProvider: 'MTN MoMo' | 'Airtel Money';
+  createdAt: string;
+  releasedAt?: string;
+  overrideReason?: string;
+}
+
+export interface CategoryCommissionSetting {
+  category: ProductCategory;
+  commissionRatePercent: number;
+  courierContributionUGX: number;
+  payoutSchedule: string;
+}
+

@@ -149,7 +149,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-transform active:scale-90 shadow-md ${
                     isWished
                       ? 'bg-rose-50 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400'
-                      : 'bg-white/90 dark:bg-slate-850/90 text-slate-400 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-800'
+                      : 'bg-white/90 dark:bg-slate-800/90 text-slate-400 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700'
                   }`}
                   title={isWished ? 'Saved to Wishlist' : 'Add to Wishlist'}
                 >

@@ -225,28 +225,32 @@ function MarketplaceApp() {
     }
   };
 
+  const isPortalView = currentView === 'seller' || currentView === 'admin' || currentView === 'superadmin';
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200 w-full max-w-full overflow-x-hidden relative">
-      {/* Header */}
-      <Header
-        currentCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onOpenAuth={() => {
-          setAuthDefaultRole('buyer');
-          setIsAuthOpen(true);
-        }}
-        onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
-        onOpenApplyToSell={() => setIsApplyToSellOpen(true)}
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        onOpenGeminiChat={() => setIsGeminiChatOpen(true)}
-        onOpenLiveVoice={() => setIsGeminiVoiceOpen(true)}
-      />
+      {/* Consumer Header: Completely Omitted on Seller, Admin, and Super Admin Portals */}
+      {!isPortalView && (
+        <Header
+          currentCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onOpenAuth={() => {
+            setAuthDefaultRole('buyer');
+            setIsAuthOpen(true);
+          }}
+          onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
+          onOpenApplyToSell={() => setIsApplyToSellOpen(true)}
+          currentView={currentView}
+          onNavigate={handleNavigate}
+          onOpenGeminiChat={() => setIsGeminiChatOpen(true)}
+          onOpenLiveVoice={() => setIsGeminiVoiceOpen(true)}
+        />
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-20 md:pb-8 w-full max-w-full overflow-x-hidden">
+      <main className={`flex-1 w-full max-w-full overflow-x-hidden ${isPortalView ? '' : 'pb-20 md:pb-8'}`}>
         {currentView === 'storefront' && (
           <div className="max-w-7xl mx-auto px-2.5 sm:px-4 py-4 sm:py-6 w-full max-w-full">
             {/* Top Carousel Banner */}
@@ -522,7 +526,7 @@ function MarketplaceApp() {
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
                 <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center font-black text-sm">1</div>
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Contact Administration</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Reach out via WhatsApp (+256 700 123 456) or call our merchant desk to discuss your store.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Reach out via WhatsApp (0776155353) or call our administration desk to discuss your store.</p>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
@@ -540,20 +544,20 @@ function MarketplaceApp() {
 
             <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
               <a
-                href="https://wa.me/256700123456?text=Hello%20SwiftCart%20Admin%2C%20I%20am%20a%20merchant%20interested%20in%20selling%20on%20SwiftCart%20Uganda.%20Kindly%20send%20me%20the%20official%20merchant%20onboarding%20and%20KYC%20registration%20form."
+                href="https://wa.me/256776155353?text=Hello%20SwiftCart%20Super%20Admin%2C%20I%20am%20a%20merchant%20interested%20in%20selling%20on%20SwiftCart%20Uganda.%20Kindly%20send%20me%20the%20official%20merchant%20onboarding%20and%20KYC%20registration%20form."
                 target="_blank"
                 rel="noreferrer"
                 className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
               >
-                <span>Chat on WhatsApp (+256 700 123 456)</span>
+                <span>Chat on WhatsApp (0776155353)</span>
                 <ArrowRight className="w-4 h-4" />
               </a>
 
               <a
-                href="tel:+256700000001"
+                href="tel:+256776155353"
                 className="px-6 py-3.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 font-bold text-sm rounded-2xl transition-colors flex items-center gap-2"
               >
-                <span>Call Onboarding Desk</span>
+                <span>Call Onboarding Desk (0776155353)</span>
               </a>
 
               <button
@@ -613,7 +617,10 @@ function MarketplaceApp() {
             onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
             onBackToHome={() => handleNavigate('storefront')}
           >
-            <SuperAdminPanel onBackToShopping={() => handleNavigate('storefront')} />
+            <SuperAdminPanel
+              onBackToShopping={() => handleNavigate('storefront')}
+              onNavigateToOpsAdmin={() => handleNavigate('admin')}
+            />
           </RouteGuard>
         )}
 
@@ -630,8 +637,11 @@ function MarketplaceApp() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 hidden md:block">
+      {/* Consumer Footer & Navigation Controls: Completely Omitted on Seller, Admin, and Super Admin Portals */}
+      {!isPortalView && (
+        <>
+          {/* Footer */}
+          <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-1.5 text-white font-extrabold text-lg mb-2">
@@ -733,6 +743,8 @@ function MarketplaceApp() {
         onNavigate={handleNavigate}
         onOpenSellerRegistration={handleOpenSellerInquiry}
       />
+    </>
+  )}
 
       {/* Modals */}
       <ProductDetailModal

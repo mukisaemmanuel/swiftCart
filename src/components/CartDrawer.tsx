@@ -100,7 +100,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               sellerPackages.map((pkg, idx) => (
                 <div
                   key={pkg.sellerId}
-                  className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50/50 dark:bg-slate-850 shadow-xs"
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50/50 dark:bg-slate-800/60 shadow-xs"
                 >
                   {/* Seller Package Header */}
                   <div className="p-3 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">

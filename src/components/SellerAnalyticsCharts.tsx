@@ -364,26 +364,26 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
   return (
     <div className="space-y-6">
       {/* Header with Eastern Uganda Location Badge & Controls */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-orange-600" /> Seller Analytics
+            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-orange-100 dark:bg-orange-950/80 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" /> Seller Analytics
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
               <MapPin className="w-3 h-3 text-orange-500" /> {sellerDistrict}
             </span>
           </div>
-          <h2 className="text-lg font-black text-slate-900 mt-1">
+          <h2 className="text-lg font-black text-slate-900 dark:text-white mt-1.5">
             Sales & Revenue Performance
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Real-time charts tracking daily orders, sales volume, and trending products across Busia, Busitema, Jinja & Busoga routes.
           </p>
         </div>
 
         {/* Time Filter Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0 self-start md:self-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 self-start md:self-auto border border-slate-200 dark:border-slate-700">
           {(
             [
               { key: '7d', label: '7 Days' },
@@ -395,10 +395,10 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
             <button
               key={t.key}
               onClick={() => setTimeRange(t.key)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 timeRange === t.key
-                  ? 'bg-white text-orange-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {t.label}
@@ -409,84 +409,84 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <div className="flex items-center justify-between text-slate-400 dark:text-slate-500 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Total Revenue
             </span>
             <DollarSign className="w-4 h-4 text-orange-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
             {formatUGX(totalRevenue)}
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold mt-1">
+          <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>Active in selected period</span>
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <div className="flex items-center justify-between text-slate-400 dark:text-slate-500 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Orders Placed
             </span>
             <ShoppingBag className="w-4 h-4 text-sky-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
             {filteredOrders.length}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             {totalUnits} items purchased
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <div className="flex items-center justify-between text-slate-400 dark:text-slate-500 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Avg Order Value
             </span>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
             {formatUGX(avgOrderValue)}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
             Average per customer basket
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <div className="flex items-center justify-between text-slate-400 dark:text-slate-500 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Delivery Success
             </span>
             <Award className="w-4 h-4 text-purple-500" />
           </div>
-          <div className="text-xl sm:text-2xl font-black text-slate-900">
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
             {fulfillmentRate}%
           </div>
-          <div className="text-[11px] text-emerald-600 font-semibold mt-1">
+          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
             {deliveredCount} delivered packages
           </div>
         </div>
       </div>
 
       {/* Main Chart 1: Revenue Trends Over Time (Area Chart) */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-orange-600" /> Revenue Trend (UGX)
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-orange-600 dark:text-orange-400" /> Revenue Trend (UGX)
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Daily earnings curve across all customer orders
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Peak Day:{' '}
-              <strong className="text-slate-900">
+              <strong className="text-slate-900 dark:text-white">
                 {dailyData.reduce((prev, curr) =>
                   curr.revenueUGX > prev.revenueUGX ? curr : prev
                 , dailyData[0] || { displayDate: '-', revenueUGX: 0 }).displayDate}
@@ -500,11 +500,11 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
             <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ea580c" stopOpacity={0.35} />
+                  <stop offset="5%" stopColor="#ea580c" stopOpacity={0.4} />
                   <stop offset="95%" stopColor="#ea580c" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} vertical={false} />
               <XAxis
                 dataKey="displayDate"
                 stroke="#94a3b8"
@@ -544,30 +544,34 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
       {/* Grid: Daily Sales Volume & Top-Selling Products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 2: Daily Sales Bar Chart (Orders & Units) */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-sky-600" /> Daily Sales & Order Volume
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Daily Sales & Order Volume
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Number of orders fulfilled each day
               </p>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[11px] font-bold border border-slate-200 dark:border-slate-700">
               <button
                 onClick={() => setMetricView('revenue')}
-                className={`px-2 py-1 rounded-md ${
-                  metricView === 'revenue' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
+                  metricView === 'revenue'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 Revenue
               </button>
               <button
                 onClick={() => setMetricView('volume')}
-                className={`px-2 py-1 rounded-md ${
-                  metricView === 'volume' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
+                  metricView === 'volume'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 Orders
@@ -578,7 +582,7 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} vertical={false} />
                 <XAxis
                   dataKey="displayDate"
                   stroke="#94a3b8"
@@ -623,24 +627,24 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
             </ResponsiveContainer>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Total Orders: <strong className="text-slate-900">{filteredOrders.length}</strong></span>
-            <span>Total Units Sold: <strong className="text-slate-900">{totalUnits}</strong></span>
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Total Orders: <strong className="text-slate-900 dark:text-white">{filteredOrders.length}</strong></span>
+            <span>Total Units Sold: <strong className="text-slate-900 dark:text-white">{totalUnits}</strong></span>
           </div>
         </div>
 
         {/* Chart 3: Top-Selling Products (Ranked Bar Chart) */}
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Package className="w-4 h-4 text-emerald-600" /> Top-Selling Products
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Top-Selling Products
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Top products ranked by sales revenue (UGX)
               </p>
             </div>
-            <span className="text-[11px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+            <span className="text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
               Best Sellers
             </span>
           </div>
@@ -655,7 +659,7 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                 }))}
                 margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.25} horizontal={false} />
                 <XAxis
                   type="number"
                   stroke="#94a3b8"
@@ -673,7 +677,7 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                 <YAxis
                   type="category"
                   dataKey="shortTitle"
-                  stroke="#475569"
+                  stroke="#94a3b8"
                   fontSize={11}
                   width={110}
                   tickLine={false}
@@ -692,21 +696,21 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
             </ResponsiveContainer>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Catalog Items: <strong className="text-slate-900">{products.length}</strong></span>
-            <span>Lead Performer: <strong className="text-emerald-700">{topProductsData[0]?.title.slice(0, 24)}...</strong></span>
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Catalog Items: <strong className="text-slate-900 dark:text-white">{products.length}</strong></span>
+            <span>Lead Performer: <strong className="text-emerald-700 dark:text-emerald-400">{topProductsData[0]?.title.slice(0, 24)}...</strong></span>
           </div>
         </div>
       </div>
 
       {/* Top Products Detailed Leaderboard */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs transition-colors">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Award className="w-4 h-4 text-amber-500" /> Product Performance Leaderboard
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Breakdown of units sold, revenue share, and inventory readiness
             </p>
           </div>
@@ -715,7 +719,7 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-wider">
                 <th className="pb-2.5 font-bold">Rank & Product</th>
                 <th className="pb-2.5 font-bold">Units Sold</th>
                 <th className="pb-2.5 font-bold">Total Sales (UGX)</th>
@@ -723,14 +727,14 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                 <th className="pb-2.5 font-bold text-right">Stock Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {topProductsData.map((prod, idx) => {
                 const sharePercent =
                   totalRevenue > 0
                     ? Math.round((prod.revenueUGX / totalRevenue) * 100)
                     : 0;
                 return (
-                  <tr key={prod.id} className="hover:bg-slate-50/70 transition-colors">
+                  <tr key={prod.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 pr-4">
                       <div className="flex items-center gap-3">
                         <span
@@ -738,10 +742,10 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                             idx === 0
                               ? 'bg-amber-400 text-amber-950 shadow-xs'
                               : idx === 1
-                              ? 'bg-slate-300 text-slate-800'
+                              ? 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200'
                               : idx === 2
-                              ? 'bg-orange-300 text-orange-900'
-                              : 'bg-slate-100 text-slate-600'
+                              ? 'bg-orange-300 dark:bg-orange-800 text-orange-900 dark:text-orange-100'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                           }`}
                         >
                           {idx + 1}
@@ -750,44 +754,44 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                           <img
                             src={prod.image}
                             alt=""
-                            className="w-9 h-9 rounded-lg object-cover border border-slate-200 shrink-0"
+                            className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                           />
                         )}
                         <div>
-                          <div className="font-bold text-slate-900 line-clamp-1">
+                          <div className="font-bold text-slate-900 dark:text-white line-clamp-1">
                             {prod.title}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">
                             {prod.category || 'General'}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 font-bold text-slate-800">
+                    <td className="py-3 font-bold text-slate-800 dark:text-slate-200">
                       {prod.unitsSold} units
                     </td>
-                    <td className="py-3 font-black text-slate-900">
+                    <td className="py-3 font-black text-slate-900 dark:text-white">
                       {formatUGX(prod.revenueUGX)}
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-20 bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className="w-20 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                           <div
                             className="bg-orange-500 h-full rounded-full"
                             style={{ width: `${Math.min(100, Math.max(8, sharePercent))}%` }}
                           />
                         </div>
-                        <span className="font-bold text-slate-600">{sharePercent}%</span>
+                        <span className="font-bold text-slate-600 dark:text-slate-400">{sharePercent}%</span>
                       </div>
                     </td>
                     <td className="py-3 text-right">
                       <span
                         className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           prod.currentStock > 10
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                             : prod.currentStock > 0
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                            : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                         }`}
                       >
                         {prod.currentStock > 0 ? `${prod.currentStock} in stock` : 'Out of stock'}
@@ -804,11 +808,11 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
       {/* Row: Category Distribution & Payment Channels Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Category Share Donut Chart */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
-            <Layers className="w-4 h-4 text-violet-600" /> Sales by Category
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
+            <Layers className="w-4 h-4 text-violet-600 dark:text-violet-400" /> Sales by Category
           </h3>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
             Category distribution of customer purchases
           </p>
 
@@ -843,17 +847,17 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-xs text-slate-400">No category data available yet</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">No category data available yet</div>
             )}
           </div>
         </div>
 
         {/* Payment Channels (MTN MoMo vs Airtel Money) */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-1">
-            <CreditCard className="w-4 h-4 text-amber-600" /> Payment Channels (Uganda)
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
+            <CreditCard className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Payment Channels (Uganda)
           </h3>
-          <p className="text-xs text-slate-500 mb-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
             100% Prepaid Escrow: MTN MoMo vs Airtel Money settlements
           </p>
 
@@ -866,22 +870,22 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
               return (
                 <div
                   key={pay.name}
-                  className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2"
+                  className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2"
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-900 flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                       <span
                         className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: pay.color }}
                       />
                       {pay.name}
                     </span>
-                    <span className="font-extrabold text-slate-900">
+                    <span className="font-extrabold text-slate-900 dark:text-white">
                       {formatUGX(pay.amount)}
                     </span>
                   </div>
 
-                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
@@ -891,15 +895,15 @@ export const SellerAnalyticsCharts: React.FC<SellerAnalyticsChartsProps> = ({
                     />
                   </div>
 
-                  <div className="flex justify-between text-[11px] text-slate-500">
+                  <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
                     <span>{pay.count} order(s) placed</span>
-                    <span className="font-bold text-slate-700">{pct}% of revenue</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">{pct}% of revenue</span>
                   </div>
                 </div>
               );
             })}
 
-            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs">
               <span className="font-bold">⚡ Ugandan MoMo Settlement Note:</span> Mobile
               Money payments are auto-reconciled with MTN MoMo & Airtel Money numbers in Busia, Jinja & nationwide.
             </div>

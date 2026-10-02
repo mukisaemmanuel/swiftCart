@@ -140,6 +140,45 @@ class PaymentService {
     if (req.provider === 'airtel_money') {
       return this.airtel.initiatePayment(req);
     }
+    if (req.provider === 'visa_mastercard') {
+      const txId = `CARD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      return {
+        success: true,
+        transactionId: txId,
+        reference: req.orderReference,
+        provider: 'visa_mastercard',
+        amountUGX: req.amountUGX,
+        phone: req.customerPhone,
+        message: 'Visa / Mastercard 3D-Secure authentication prompt sent.',
+        status: 'PENDING_PIN',
+      };
+    }
+    if (req.provider === 'bank_eft') {
+      const txId = `EFT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      return {
+        success: true,
+        transactionId: txId,
+        reference: req.orderReference,
+        provider: 'bank_eft',
+        amountUGX: req.amountUGX,
+        phone: req.customerPhone,
+        message: 'Bank EFT instructions generated. Awaiting confirmation.',
+        status: 'PENDING_PIN',
+      };
+    }
+    if (req.provider === 'cash_border') {
+      const txId = `BORDER-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      return {
+        success: true,
+        transactionId: txId,
+        reference: req.orderReference,
+        provider: 'cash_border',
+        amountUGX: req.amountUGX,
+        phone: req.customerPhone,
+        message: 'Order registered for Pay on Delivery at destination / border post.',
+        status: 'SUCCESSFUL',
+      };
+    }
     return this.mtn.initiatePayment(req);
   }
 

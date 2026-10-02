@@ -268,7 +268,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 {/* Header bar */}
                 <div
                   onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                  className="p-4 bg-slate-50/80 dark:bg-slate-850/80 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none"
+                  className="p-4 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 flex items-center justify-center font-bold text-xs shrink-0">

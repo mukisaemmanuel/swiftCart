@@ -6,7 +6,8 @@ declare const __APP_BUILD_TIME__: string;
 const currentBuild = typeof __APP_BUILD_TIME__ !== 'undefined' ? __APP_BUILD_TIME__ : '';
 
 export function initAutoRefreshOnDeploy(checkIntervalMs = 30000): () => void {
-  if (!currentBuild || typeof window === 'undefined') {
+  // Never run auto-refresh polling on localhost / Vite dev server
+  if (import.meta.env.DEV || !currentBuild || typeof window === 'undefined') {
     return () => {};
   }
 

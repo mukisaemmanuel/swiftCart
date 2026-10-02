@@ -239,7 +239,7 @@ How can I assist you today?`,
         </div>
 
         {/* Configuration Bar: Model Selection & Role Tabs */}
-        <div className="bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 p-2.5 sm:px-4 space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-800 p-2.5 sm:px-4 space-y-2">
           {/* Row 1: Model Choice & Google Search Grounding Checkbox */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
             {/* Model Mode Switcher */}
@@ -425,7 +425,7 @@ How can I assist you today?`,
         </div>
 
         {/* Suggested Quick Prompts */}
-        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-850 border-t border-slate-200/80 dark:border-slate-800 overflow-x-auto scrollbar-none flex items-center gap-1.5">
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200/80 dark:border-slate-800 overflow-x-auto scrollbar-none flex items-center gap-1.5">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
             Suggested:
           </span>
