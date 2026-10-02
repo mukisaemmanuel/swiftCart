@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { dbService } from './services/db';
-import { Product, ProductCategory, Seller } from './types';
+import { Product, ProductCategory, Seller, UserRole } from './types';
 import { SEED_PRODUCTS, SEED_SELLERS } from './data/seedData';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -19,6 +19,9 @@ import { OrderTrackingView } from './components/OrderTrackingView';
 import { WishlistView } from './components/WishlistView';
 import { SellerDashboard } from './components/SellerDashboard';
 import { AdminPanel } from './components/AdminPanel';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { RouteGuard } from './components/RouteGuard';
+import { ApplyToSellModal } from './components/ApplyToSellModal';
 import { AuthModal } from './components/AuthModal';
 import { DemoSwitcherModal } from './components/DemoSwitcherModal';
 import { NotificationModal } from './components/NotificationModal';
@@ -35,14 +38,50 @@ import {
   ArrowRight,
   Filter,
   Mic,
+  FileCheck2,
+  Building2,
+  Lock,
 } from 'lucide-react';
 
+export type AppView = 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell';
+
+function pathToView(pathname: string): AppView {
+  const clean = pathname.toLowerCase().replace(/\/$/, '');
+  if (clean.startsWith('/seller')) return 'seller';
+  if (clean.startsWith('/superadmin')) return 'superadmin';
+  if (clean.startsWith('/admin')) return 'admin';
+  if (clean.startsWith('/orders')) return 'orders';
+  if (clean.startsWith('/wishlist')) return 'wishlist';
+  if (clean.startsWith('/sell')) return 'sell';
+  return 'storefront';
+}
+
+function viewToPath(view: AppView): string {
+  switch (view) {
+    case 'seller':
+      return '/seller/dashboard';
+    case 'admin':
+      return '/admin';
+    case 'superadmin':
+      return '/superadmin';
+    case 'orders':
+      return '/orders';
+    case 'wishlist':
+      return '/wishlist';
+    case 'sell':
+      return '/sell';
+    case 'storefront':
+    default:
+      return '/';
+  }
+}
+
 function MarketplaceApp() {
-  const { currentUser } = useAuth();
+  const { currentUser, isSeller } = useAuth();
   const { setIsCartOpen } = useCart();
 
-  // Navigation view: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist'
-  const [currentView, setCurrentView] = useState<'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist'>('storefront');
+  // Navigation view: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell'
+  const [currentView, setCurrentView] = useState<AppView>(() => pathToView(window.location.pathname));
 
   // Products & Sellers (initialized with seed data for instant, zero-delay rendering)
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
@@ -59,15 +98,38 @@ function MarketplaceApp() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'buyer' | 'seller'>('buyer');
   const [isDemoSwitcherOpen, setIsDemoSwitcherOpen] = useState(false);
+  const [isApplyToSellOpen, setIsApplyToSellOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState<string | undefined>(undefined);
   const [isGeminiChatOpen, setIsGeminiChatOpen] = useState(false);
   const [isGeminiVoiceOpen, setIsGeminiVoiceOpen] = useState(false);
 
+  // Navigation handler with browser URL sync
+  const handleNavigate = useCallback((view: AppView) => {
+    setCurrentView(view);
+    const newPath = viewToPath(view);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ view }, '', newPath);
+    }
+    if (view === 'sell') {
+      setIsApplyToSellOpen(true);
+    }
+  }, []);
+
   useEffect(() => {
-    // 1. Automatic reload when new build or code update is deployed to Firebase Hosting
+    // 1. Listen for browser Back/Forward navigation
+    const handlePopState = () => {
+      const view = pathToView(window.location.pathname);
+      setCurrentView(view);
+      if (view === 'sell') {
+        setIsApplyToSellOpen(true);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    // 2. Automatic reload when new build or code update is deployed to Firebase Hosting
     const cleanupAutoRefresh = initAutoRefreshOnDeploy(30000);
 
-    // 2. Real-time automatic data synchronization from Cloud Firestore
+    // 3. Real-time automatic data synchronization from Cloud Firestore
     let unsubProducts: (() => void) | null = null;
     let unsubSellers: (() => void) | null = null;
 
@@ -83,14 +145,14 @@ function MarketplaceApp() {
         if (prods && prods.length > 0) setProducts(prods);
         if (sllrs && sllrs.length > 0) setSellers(sllrs);
 
-        // Real-time live listener for products (auto-refreshes when any seller adds/modifies items)
+        // Real-time live listener for products
         unsubProducts = dbService.subscribeToProducts((liveProds) => {
           if (liveProds && liveProds.length > 0) {
             setProducts(liveProds);
           }
         });
 
-        // Real-time live listener for sellers (auto-refreshes when merchants register or get verified)
+        // Real-time live listener for sellers
         unsubSellers = dbService.subscribeToSellers((liveSellers) => {
           if (liveSellers && liveSellers.length > 0) {
             setSellers(liveSellers);
@@ -111,8 +173,8 @@ function MarketplaceApp() {
     const orderRef = params.get('OrderMerchantReference') || params.get('orderMerchantReference');
     const path = window.location.pathname;
 
-    if (orderTrackingId || path === '/orders') {
-      setCurrentView('orders');
+    if (orderTrackingId || path.startsWith('/orders')) {
+      handleNavigate('orders');
       if (orderRef) {
         setTrackingOrderId(orderRef);
       } else if (orderTrackingId) {
@@ -121,14 +183,17 @@ function MarketplaceApp() {
       if (orderTrackingId) {
         dbService.updateOrderPaymentStatus(orderRef || orderTrackingId, 'paid');
       }
+    } else if (path.startsWith('/sell')) {
+      setIsApplyToSellOpen(true);
     }
 
     return () => {
+      window.removeEventListener('popstate', handlePopState);
       cleanupAutoRefresh();
       if (unsubProducts) unsubProducts();
       if (unsubSellers) unsubSellers();
     };
-  }, []);
+  }, [handleNavigate]);
 
   // Filter products by Category, Seller, Search Query, and Express status
   const filteredProducts = products.filter((p) => {
@@ -149,15 +214,14 @@ function MarketplaceApp() {
 
   const handleOrderSuccess = (masterOrderId: string) => {
     setTrackingOrderId(masterOrderId);
-    setCurrentView('orders');
+    handleNavigate('orders');
   };
 
-  const handleOpenSellerOnboarding = () => {
-    if (currentUser?.role === 'seller') {
-      setCurrentView('seller');
+  const handleOpenSellerInquiry = () => {
+    if (isSeller) {
+      handleNavigate('seller');
     } else {
-      setAuthDefaultRole('seller');
-      setIsAuthOpen(true);
+      setIsApplyToSellOpen(true);
     }
   };
 
@@ -174,8 +238,9 @@ function MarketplaceApp() {
           setIsAuthOpen(true);
         }}
         onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
+        onOpenApplyToSell={() => setIsApplyToSellOpen(true)}
         currentView={currentView}
-        onNavigate={setCurrentView}
+        onNavigate={handleNavigate}
         onOpenGeminiChat={() => setIsGeminiChatOpen(true)}
         onOpenLiveVoice={() => setIsGeminiVoiceOpen(true)}
       />
@@ -190,7 +255,7 @@ function MarketplaceApp() {
                 setSelectedCategory(cat);
                 window.scrollTo({ top: 380, behavior: 'smooth' });
               }}
-              onOpenSellerOnboarding={handleOpenSellerOnboarding}
+              onOpenSellerOnboarding={handleOpenSellerInquiry}
             />
 
             {/* Ugandan Value Props Strip */}
@@ -361,7 +426,7 @@ function MarketplaceApp() {
                     setSearchQuery('');
                     setExpressOnly(false);
                   }}
-                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   Reset All Filters
                 </button>
@@ -379,50 +444,173 @@ function MarketplaceApp() {
               </div>
             )}
 
-            {/* Sell on SwiftCart Banner */}
-            <div className="mt-12 rounded-3xl bg-linear-to-r from-slate-900 via-slate-800 to-orange-950 p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
-              <div className="max-w-xl space-y-3 relative z-10">
-                <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 bg-orange-950/60 px-2.5 py-0.5 rounded-full border border-orange-700/50">
-                  Merchant Network
-                </span>
-                <h3 className="text-xl sm:text-3xl font-black">
-                  Grow Your Business Across Uganda on SwiftCart
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  Join hundreds of verified sellers across Uganda. Enjoy automated MoMo payouts, split checkout fulfillment, and Swift Express logistics.
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={handleOpenSellerOnboarding}
-                    className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                  >
-                    <span>Register Your Store Today</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+            {/* Apply to Sell Gateway Ribbon (Inquiry Only - No public self-registration) */}
+            <div className="mt-10 sm:mt-12 rounded-2xl sm:rounded-3xl bg-linear-to-r from-slate-900 via-slate-800 to-orange-950 p-5 sm:p-10 text-white shadow-xl relative overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center relative z-10">
+                <div className="space-y-3 max-w-xl">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-orange-400 bg-orange-950/60 px-2.5 py-0.5 rounded-full border border-orange-700/50 inline-block">
+                    Verified Merchant Program
+                  </span>
+                  <h3 className="text-xl sm:text-3xl font-black leading-snug">
+                    Grow Your Business Across Uganda on SwiftCart
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    Join vetted merchant partners across Kampala, Entebbe, Jinja, Mbarara & Gulu. Enjoy automated MoMo escrow payouts, multi-vendor cart fulfillment, and Swift Express logistics.
+                  </p>
+                  <div className="pt-2 flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handleOpenSellerInquiry}
+                      className="px-5 sm:px-6 py-2.5 sm:py-3 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    >
+                      <FileCheck2 className="w-4 h-4" />
+                      <span>Apply to Sell (Vetted Gateway)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <span className="text-[11px] text-slate-400">KYC & URSB validation required</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center md:justify-end">
+                  <div className="relative w-full max-w-[240px] sm:max-w-xs h-36 sm:h-48 md:h-56 rounded-2xl overflow-hidden shadow-xl border-2 border-white/10 bg-slate-800/80">
+                    <img
+                      src="https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=600&q=80"
+                      alt="Verified Ugandan Merchant Storefront"
+                      className="w-full h-full object-cover opacity-85"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/30 to-transparent flex flex-col justify-end p-3">
+                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                        <Store className="w-3.5 h-3.5" /> 100% Vetted Merchant Network
+                      </span>
+                      <span className="text-[10px] text-slate-300">Protected Escrow & Instant Settlements</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* Wishlist View */}
         {currentView === 'wishlist' && (
           <WishlistView
-            onBackToShopping={() => setCurrentView('storefront')}
+            onBackToShopping={() => handleNavigate('storefront')}
             onOpenProduct={setSelectedProduct}
           />
         )}
 
+        {/* Dedicated /sell Gateway View */}
+        {currentView === 'sell' && (
+          <div className="max-w-4xl mx-auto px-4 py-12 text-center space-y-8 animate-in fade-in duration-300">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center mx-auto text-orange-600 dark:text-orange-400 shadow-xl">
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10" />
+            </div>
+
+            <div className="space-y-3 max-w-2xl mx-auto">
+              <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
+                Merchant Application Gateway
+              </span>
+              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
+                Partner with SwiftCart Uganda
+              </h1>
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
+                To protect our buyers and deliver a premium marketplace experience, SwiftCart admits merchants through a verified application process. Submit your store inquiry below to get vetted.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left max-w-3xl mx-auto">
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center font-black text-sm">1</div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Submit KYC Details</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Provide business registration name, district, and contact phone number.</p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center font-black text-sm">2</div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Admin Audit & Verification</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Operations and Super Admin teams review merchant credibility and product category.</p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-black text-sm">3</div>
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Role Upgrade to SELLER</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Receive merchant portal access at <code>/seller/dashboard</code> and begin listing products.</p>
+              </div>
+            </div>
+
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
+              <button
+                onClick={() => setIsApplyToSellOpen(true)}
+                className="px-8 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-black text-sm rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <FileCheck2 className="w-5 h-5" />
+                <span>Open Application Form</span>
+              </button>
+              <button
+                onClick={() => handleNavigate('storefront')}
+                className="px-6 py-3.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-2xl transition-colors cursor-pointer"
+              >
+                Return to Storefront
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Guarded Seller Portal (/seller/*) */}
         {currentView === 'seller' && (
-          <SellerDashboard onBackToShopping={() => setCurrentView('storefront')} />
+          <RouteGuard
+            allowedRoles={['SELLER', 'SUPER_ADMIN']}
+            portalName="Seller Merchant Portal"
+            portalPath="/seller/dashboard"
+            onOpenAuth={() => {
+              setAuthDefaultRole('seller');
+              setIsAuthOpen(true);
+            }}
+            onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
+            onBackToHome={() => handleNavigate('storefront')}
+          >
+            <SellerDashboard onBackToShopping={() => handleNavigate('storefront')} />
+          </RouteGuard>
         )}
 
+        {/* Guarded Operations Admin Portal (/admin/*) */}
         {currentView === 'admin' && (
-          <AdminPanel onBackToShopping={() => setCurrentView('storefront')} />
+          <RouteGuard
+            allowedRoles={['ADMIN', 'SUPER_ADMIN']}
+            portalName="Operations Admin Portal"
+            portalPath="/admin"
+            onOpenAuth={() => {
+              setAuthDefaultRole('buyer');
+              setIsAuthOpen(true);
+            }}
+            onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
+            onBackToHome={() => handleNavigate('storefront')}
+          >
+            <AdminPanel onBackToShopping={() => handleNavigate('storefront')} />
+          </RouteGuard>
         )}
 
+        {/* Guarded Super Admin Executive Portal (/superadmin/*) */}
+        {currentView === 'superadmin' && (
+          <RouteGuard
+            allowedRoles={['SUPER_ADMIN']}
+            portalName="Super Admin Executive Governance Portal"
+            portalPath="/superadmin"
+            onOpenAuth={() => {
+              setAuthDefaultRole('buyer');
+              setIsAuthOpen(true);
+            }}
+            onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
+            onBackToHome={() => handleNavigate('storefront')}
+          >
+            <SuperAdminPanel onBackToShopping={() => handleNavigate('storefront')} />
+          </RouteGuard>
+        )}
+
+        {/* Orders View */}
         {currentView === 'orders' && (
           <OrderTrackingView
-            onBackToShopping={() => setCurrentView('storefront')}
+            onBackToShopping={() => handleNavigate('storefront')}
             selectedOrderId={trackingOrderId}
             onOpenAuth={() => {
               setAuthDefaultRole('buyer');
@@ -471,22 +659,23 @@ function MarketplaceApp() {
 
           <div>
             <h4 className="text-white font-bold mb-3 uppercase text-[11px] tracking-wider">
-              Seller Center
+              Seller Center & Inquiries
             </h4>
             <p className="text-xs mb-3 text-slate-400">
-              Are you a shop owner or merchant in Uganda? Start listing your products in minutes.
+              Are you a shop owner or merchant in Uganda? Apply to sell and get verified on SwiftCart.
             </p>
             <button
-              onClick={handleOpenSellerOnboarding}
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition-colors"
+              onClick={handleOpenSellerInquiry}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              Open Seller Account
+              <FileCheck2 className="w-3.5 h-3.5" />
+              <span>Apply to Sell</span>
             </button>
           </div>
         </div>
 
         <div className="border-t border-slate-800 py-4 text-center text-[11px] text-slate-500">
-          © 2026 SwiftCart Uganda. All rights reserved. Built for Uganda & Nationwide.
+          © 2026 SwiftCart Uganda. All rights reserved. Role-Based Access Control (RBAC) Enforced.
         </div>
       </footer>
 
@@ -495,7 +684,7 @@ function MarketplaceApp() {
         <div className="bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-1 sm:p-1.5 shadow-2xl border border-slate-800 flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={() => setIsGeminiChatOpen(true)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md transition-all group"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md transition-all group cursor-pointer"
             title="Chat with SwiftCart Gemini AI"
           >
             <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -507,7 +696,7 @@ function MarketplaceApp() {
 
           <button
             onClick={() => setIsGeminiVoiceOpen(true)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-white transition-colors cursor-pointer"
             title="Start Live Voice (gemini-3.8-live)"
           >
             <Mic className="w-4 h-4" />
@@ -531,8 +720,8 @@ function MarketplaceApp() {
       {/* Mobile Bottom Navigation */}
       <BottomNav
         currentView={currentView}
-        onNavigate={setCurrentView}
-        onOpenSellerRegistration={handleOpenSellerOnboarding}
+        onNavigate={handleNavigate}
+        onOpenSellerRegistration={handleOpenSellerInquiry}
       />
 
       {/* Modals */}
@@ -542,13 +731,13 @@ function MarketplaceApp() {
         onViewSeller={(sId) => {
           setSelectedProduct(null);
           setSelectedSellerId(sId);
-          setCurrentView('storefront');
+          handleNavigate('storefront');
         }}
       />
 
       <CartDrawer
         onOpenCheckout={() => setIsCheckoutOpen(true)}
-        onExploreProducts={() => setCurrentView('storefront')}
+        onExploreProducts={() => handleNavigate('storefront')}
       />
 
       <CheckoutModal
@@ -566,12 +755,15 @@ function MarketplaceApp() {
         onClose={() => setIsAuthOpen(false)}
         defaultRole={authDefaultRole}
         onAuthSuccess={(role) => {
-          if (role === 'seller') {
-            setCurrentView('seller');
-          } else if (role === 'admin') {
-            setCurrentView('admin');
+          const upper = (role || '').toUpperCase();
+          if (upper === 'SUPER_ADMIN') {
+            handleNavigate('superadmin');
+          } else if (upper === 'ADMIN') {
+            handleNavigate('admin');
+          } else if (upper === 'SELLER') {
+            handleNavigate('seller');
           } else {
-            setCurrentView('storefront');
+            handleNavigate('storefront');
           }
         }}
       />
@@ -580,12 +772,25 @@ function MarketplaceApp() {
         isOpen={isDemoSwitcherOpen}
         onClose={() => setIsDemoSwitcherOpen(false)}
         onSelectRole={(role) => {
-          if (role === 'seller') {
-            setCurrentView('seller');
-          } else if (role === 'admin') {
-            setCurrentView('admin');
+          const upper = (role || '').toUpperCase();
+          if (upper === 'SUPER_ADMIN') {
+            handleNavigate('superadmin');
+          } else if (upper === 'ADMIN') {
+            handleNavigate('admin');
+          } else if (upper === 'SELLER') {
+            handleNavigate('seller');
           } else {
-            setCurrentView('storefront');
+            handleNavigate('storefront');
+          }
+        }}
+      />
+
+      <ApplyToSellModal
+        isOpen={isApplyToSellOpen}
+        onClose={() => {
+          setIsApplyToSellOpen(false);
+          if (currentView === 'sell') {
+            handleNavigate('storefront');
           }
         }}
       />
@@ -593,7 +798,7 @@ function MarketplaceApp() {
       <NotificationModal
         onNavigateToOrder={(orderId) => {
           setTrackingOrderId(orderId);
-          setCurrentView('orders');
+          handleNavigate('orders');
         }}
       />
     </div>

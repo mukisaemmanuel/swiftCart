@@ -19,6 +19,98 @@ const port = process.env.PORT || 3000;
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 
+// --- RBAC Middleware & Guard Helpers ---
+const requireRole = (allowedRoles: string[]) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const userRole = (req.headers['x-user-role'] as string || '').toUpperCase();
+    const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
+
+    if (!userRole) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required. Please sign in with an authorized account.',
+      });
+    }
+
+    if (!normalizedAllowed.includes(userRole)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `Insufficient permissions. Access requires one of: ${normalizedAllowed.join(', ')}.`,
+        userRole,
+        requiredRoles: normalizedAllowed,
+      });
+    }
+
+    next();
+  };
+};
+
+// GET /api/rbac/verify - Client token & role verification gateway
+app.get('/api/rbac/verify', (req, res) => {
+  const userRole = (req.headers['x-user-role'] as string || '').toUpperCase();
+  const requestedScope = (req.query.scope as string || '').toUpperCase();
+
+  if (!userRole) {
+    return res.status(401).json({ authorized: false, reason: 'UNAUTHENTICATED' });
+  }
+
+  let authorized = false;
+  if (requestedScope === 'SUPERADMIN' && userRole === 'SUPER_ADMIN') authorized = true;
+  else if (requestedScope === 'ADMIN' && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN')) authorized = true;
+  else if (requestedScope === 'SELLER' && userRole === 'SELLER') authorized = true;
+  else if (requestedScope === 'BUYER' || !requestedScope) authorized = true;
+
+  if (!authorized) {
+    return res.status(403).json({
+      authorized: false,
+      reason: 'FORBIDDEN',
+      userRole,
+      requestedScope,
+    });
+  }
+
+  return res.json({ authorized: true, userRole });
+});
+
+// POST /api/seller/apply - Merchant inquiry application gateway
+app.post('/api/seller/apply', (req, res) => {
+  const { applicantName, email, phone, storeName, businessType, district, address, description } = req.body;
+  if (!applicantName || !email || !phone || !storeName) {
+    return res.status(400).json({ error: 'Missing required applicant fields.' });
+  }
+
+  const application = {
+    id: `app_${Date.now()}`,
+    applicantName,
+    email,
+    phone,
+    storeName,
+    businessType: businessType || 'General Merchandise',
+    district: district || 'Kampala',
+    address: address || 'Kampala',
+    description: description || '',
+    status: 'PENDING',
+    submittedAt: new Date().toISOString(),
+  };
+
+  return res.status(201).json({ success: true, application });
+});
+
+// GET /api/superadmin/metrics - Guarded exclusively for SUPER_ADMIN
+app.get('/api/superadmin/metrics', requireRole(['SUPER_ADMIN']), (_req, res) => {
+  return res.json({
+    totalGrossVolumeUGX: 42500000,
+    totalEscrowHeldUGX: 6850000,
+    totalSettledPayoutsUGX: 35650000,
+    platformCommissionsUGX: 2125000,
+    momoVolumeUGX: 28500000,
+    airtelVolumeUGX: 11200000,
+    cardVolumeUGX: 2800000,
+    activeMerchantsCount: 8,
+    totalTransactionsCount: 142,
+  });
+});
+
 // Initialize Google GenAI client
 const apiKey = process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({

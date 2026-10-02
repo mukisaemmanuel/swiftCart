@@ -31,8 +31,9 @@ interface HeaderProps {
   onSearchChange: (q: string) => void;
   onOpenAuth: () => void;
   onOpenDemoSwitcher?: () => void;
-  currentView: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist';
-  onNavigate: (view: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist') => void;
+  onOpenApplyToSell?: () => void;
+  currentView: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell';
+  onNavigate: (view: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell') => void;
   onOpenGeminiChat?: () => void;
   onOpenLiveVoice?: () => void;
 }
@@ -54,10 +55,14 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   onOpenAuth,
+  onOpenDemoSwitcher,
+  onOpenApplyToSell,
   currentView,
   onNavigate,
+  onOpenGeminiChat,
+  onOpenLiveVoice,
 }) => {
-  const { currentUser, currentSeller, logout } = useAuth();
+  const { currentUser, currentSeller, logout, isBuyer, isSeller, isAdmin, isSuperAdmin } = useAuth();
   const { totalItemsCount, setIsCartOpen } = useCart();
   const { wishlistCount } = useWishlist();
   const { unreadCount, setIsOpen: setIsNotifOpen } = useNotifications();
@@ -291,40 +296,56 @@ export const Header: React.FC<HeaderProps> = ({
                           My Orders & Tracking
                         </button>
 
-                        {currentUser.role === 'seller' ? (
+                        {isSeller && (
                           <button
                             onClick={() => {
                               setUserMenuOpen(false);
                               onNavigate('seller');
                             }}
-                            className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-xl flex items-center gap-2 cursor-pointer"
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-orange-300 hover:bg-orange-950/40 rounded-xl flex items-center gap-2 cursor-pointer"
                           >
                             <Store className="w-4 h-4 text-orange-400" />
-                            Seller Dashboard
+                            Seller Portal (/seller)
                           </button>
-                        ) : (
+                        )}
+
+                        {isBuyer && !isSeller && !isAdmin && !isSuperAdmin && (
                           <button
                             onClick={() => {
                               setUserMenuOpen(false);
-                              onOpenAuth();
+                              if (onOpenApplyToSell) onOpenApplyToSell();
+                              else onNavigate('sell');
                             }}
                             className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-xl flex items-center gap-2 cursor-pointer"
                           >
                             <Store className="w-4 h-4 text-slate-400" />
-                            Register as Seller
+                            Apply to Sell on SwiftCart
                           </button>
                         )}
 
-                        {currentUser.role === 'admin' && (
+                        {isAdmin && (
                           <button
                             onClick={() => {
                               setUserMenuOpen(false);
                               onNavigate('admin');
                             }}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold text-blue-300 hover:bg-blue-950/40 rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Shield className="w-4 h-4 text-blue-400" />
+                            Operations Admin (/admin)
+                          </button>
+                        )}
+
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              onNavigate('superadmin');
+                            }}
                             className="w-full text-left px-3 py-2 text-xs font-semibold text-purple-300 hover:bg-purple-950/40 rounded-xl flex items-center gap-2 cursor-pointer"
                           >
-                            <Shield className="w-4 h-4 text-purple-400" />
-                            Admin Oversight
+                            <span className="text-xs">👑</span>
+                            Super Admin Executive (/superadmin)
                           </button>
                         )}
 
@@ -598,9 +619,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </a>
               </nav>
 
-              {/* Context Actions: Seller / Admin */}
+              {/* Context Actions: Seller / Admin / Super Admin / Apply to Sell */}
               <div className="pt-2 border-t border-slate-800 space-y-1.5">
-                {currentUser?.role === 'seller' && (
+                {isSeller && (
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -609,20 +630,47 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold bg-orange-950/80 border border-orange-800 text-orange-300 hover:bg-orange-900/80 transition-colors cursor-pointer"
                   >
                     <Store className="w-4 h-4 text-orange-400" />
-                    <span>Seller Center</span>
+                    <span>Seller Portal (/seller)</span>
                   </button>
                 )}
 
-                {currentUser?.role === 'admin' && (
+                {isBuyer && !isSeller && !isAdmin && !isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (onOpenApplyToSell) onOpenApplyToSell();
+                      else onNavigate('sell');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-750 transition-colors cursor-pointer"
+                  >
+                    <Store className="w-4 h-4 text-slate-400" />
+                    <span>Apply to Sell on SwiftCart</span>
+                  </button>
+                )}
+
+                {isAdmin && (
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
                       onNavigate('admin');
                     }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold bg-blue-950/80 border border-blue-800 text-blue-300 hover:bg-blue-900/80 transition-colors cursor-pointer"
+                  >
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    <span>Operations Admin (/admin)</span>
+                  </button>
+                )}
+
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onNavigate('superadmin');
+                    }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold bg-purple-950/80 border border-purple-800 text-purple-300 hover:bg-purple-900/80 transition-colors cursor-pointer"
                   >
-                    <Shield className="w-4 h-4 text-purple-400" />
-                    <span>Admin Console</span>
+                    <span className="text-xs">👑</span>
+                    <span>Super Admin Executive (/superadmin)</span>
                   </button>
                 )}
               </div>

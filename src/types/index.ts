@@ -1,4 +1,14 @@
-export type UserRole = 'buyer' | 'seller' | 'admin';
+export type UserRole =
+  | 'BUYER'
+  | 'SELLER'
+  | 'ADMIN'
+  | 'SUPER_ADMIN'
+  | 'buyer'
+  | 'seller'
+  | 'admin'
+  | 'super_admin';
+
+export type UserStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
 
 export interface NotificationPreferences {
   orderUpdates: boolean;
@@ -13,10 +23,53 @@ export interface User {
   phone: string;
   name: string;
   role: UserRole;
+  status: UserStatus;
   createdAt: string;
+  updatedAt?: string;
   avatarUrl?: string;
   password?: string;
   notificationPreferences?: NotificationPreferences;
+}
+
+export interface SellerApplication {
+  id: string;
+  applicantName: string;
+  email: string;
+  phone: string;
+  storeName: string;
+  businessType: string;
+  district: string;
+  address: string;
+  description: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: UserRole;
+  action: string;
+  details: string;
+  targetId?: string;
+  targetType?: 'USER' | 'SELLER' | 'PRODUCT' | 'ORDER' | 'SYSTEM';
+  timestamp: string;
+  ipAddress?: string;
+}
+
+export interface PlatformFinancialMetrics {
+  totalGrossVolumeUGX: number;
+  totalEscrowHeldUGX: number;
+  totalSettledPayoutsUGX: number;
+  platformCommissionsUGX: number;
+  momoVolumeUGX: number;
+  airtelVolumeUGX: number;
+  cardVolumeUGX: number;
+  activeMerchantsCount: number;
+  totalTransactionsCount: number;
 }
 
 export type SellerStatus = 'pending' | 'approved' | 'rejected';

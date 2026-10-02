@@ -123,9 +123,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {pkg.items.map(({ product, quantity }) => (
                       <div key={product.id} className="pt-3 first:pt-0 flex gap-3">
                         <img
-                          src={product.images[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80'}
+                          src={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80'}
                           alt={product.title}
                           className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 bg-white dark:bg-slate-800"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=200&q=80';
+                          }}
                         />
 
                         <div className="flex-1 min-w-0 flex flex-col justify-between">

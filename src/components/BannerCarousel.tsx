@@ -97,13 +97,20 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
             </div>
           </div>
 
-          <div className="hidden md:flex justify-end">
-            <div className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/20 transform rotate-1 hover:rotate-0 transition-transform">
+          {/* Featured Product Visual (Visible on both mobile & desktop) */}
+          <div className="flex justify-center md:justify-end mt-3 md:mt-0">
+            <div className="relative w-full max-w-[260px] sm:max-w-xs md:w-72 h-44 sm:h-56 md:h-72 rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-4 border-white/20 transform md:rotate-1 md:hover:rotate-0 transition-all duration-300">
               <img
                 src={slide.image}
                 alt={slide.title}
                 className="w-full h-full object-cover"
+                loading="eager"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=700&q=80';
+                }}
               />
+              <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
             </div>
           </div>
         </div>

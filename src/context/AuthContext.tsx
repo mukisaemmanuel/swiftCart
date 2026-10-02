@@ -16,6 +16,10 @@ interface AuthContextType {
   currentSeller: Seller | null;
   isLoading: boolean;
   isLiveAuth: boolean;
+  isBuyer: boolean;
+  isSeller: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
   login: (emailOrPhone: string, password?: string) => Promise<{ success: boolean; message?: string }>;
   register: (data: {
     name: string;
@@ -42,6 +46,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLiveAuth, setIsLiveAuth] = useState<boolean>(false);
+
+  const roleStr = (currentUser?.role || '').toUpperCase();
+  const isBuyer = !currentUser || roleStr === 'BUYER';
+  const isSeller = roleStr === 'SELLER';
+  const isAdmin = roleStr === 'ADMIN' || roleStr === 'SUPER_ADMIN';
+  const isSuperAdmin = roleStr === 'SUPER_ADMIN';
 
   // Load user and seller documents directly from Cloud Firestore
   const loadUserAndSeller = async (userId: string, isLive: boolean) => {
@@ -72,7 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLiveAuth(isLive);
 
       // If user is a merchant, load seller profile from Firestore
-      if (user.role === 'seller') {
+      const userRoleLower = (user.role || '').toLowerCase();
+      if (userRoleLower === 'seller') {
         let seller: Seller | null = null;
         try {
           const sellerSnap = await withTimeout(getDoc(doc(db, 'sellers', user.id)), 6000);
@@ -320,13 +331,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 2. Create User Profile document in Cloud Firestore (/users/${uid})
+    const normalizedRole = (data.role || 'BUYER').toUpperCase() as UserRole;
     const newUser: User = {
       id: fbUid,
       name: data.name.trim(),
       email,
       phone: data.phone.trim(),
-      role: data.role,
+      role: normalizedRole,
+      status: 'ACTIVE',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.name)}`,
       notificationPreferences: {
         orderUpdates: true,
@@ -343,7 +357,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 3. If role is seller, create Seller Profile document in Cloud Firestore (/sellers/${uid})
-    if (data.role === 'seller') {
+    if (normalizedRole === 'SELLER' || data.role === 'seller') {
       const newSeller: Seller = {
         id: fbUid,
         userId: fbUid,
@@ -430,6 +444,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentSeller,
         isLoading,
         isLiveAuth,
+        isBuyer,
+        isSeller,
+        isAdmin,
+        isSuperAdmin,
         login,
         register,
         logout,

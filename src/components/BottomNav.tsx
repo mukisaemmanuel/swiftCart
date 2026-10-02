@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 
 interface BottomNavProps {
-  currentView: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist';
-  onNavigate: (view: 'storefront' | 'seller' | 'admin' | 'orders' | 'wishlist') => void;
+  currentView: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell';
+  onNavigate: (view: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell') => void;
   onOpenSellerRegistration?: () => void;
 }
 
@@ -23,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const { totalItemsCount, setIsCartOpen } = useCart();
   const { wishlistCount } = useWishlist();
-  const { currentUser } = useAuth();
+  const { currentUser, isSeller, isAdmin, isSuperAdmin, isBuyer } = useAuth();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-1 px-1.5 md:hidden shadow-lg safe-bottom transition-colors duration-200">
@@ -31,7 +31,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* Home */}
         <button
           onClick={() => onNavigate('storefront')}
-          className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
+          className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors cursor-pointer ${
             currentView === 'storefront' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
@@ -42,7 +42,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* Wishlist */}
         <button
           onClick={() => onNavigate('wishlist')}
-          className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors relative ${
+          className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors relative cursor-pointer ${
             currentView === 'wishlist' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
@@ -55,29 +55,48 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           )}
         </button>
 
-        {/* Sell / Seller Center / Admin */}
-        {/* Seller Center (authenticated sellers) or Admin Oversight */}
-        {currentUser?.role === 'admin' ? (
+        {/* Role Portal / Apply to Sell Action */}
+        {isSuperAdmin ? (
+          <button
+            onClick={() => onNavigate('superadmin')}
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors cursor-pointer ${
+              currentView === 'superadmin' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <span className="text-base mb-0.5">👑</span>
+            <span>SuperAdmin</span>
+          </button>
+        ) : isAdmin ? (
           <button
             onClick={() => onNavigate('admin')}
-            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
-              currentView === 'admin' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors cursor-pointer ${
+              currentView === 'admin' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             <Shield className="w-5 h-5 mb-0.5" />
             <span>Admin</span>
           </button>
-        ) : currentUser?.role === 'seller' ? (
+        ) : isSeller ? (
           <button
             onClick={() => onNavigate('seller')}
-            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors ${
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors cursor-pointer ${
               currentView === 'seller' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             <Store className="w-5 h-5 mb-0.5" />
             <span>Seller</span>
           </button>
-        ) : null}
+        ) : (
+          <button
+            onClick={() => onNavigate('sell')}
+            className={`flex flex-col items-center py-1 px-2 text-[10px] font-bold transition-colors cursor-pointer ${
+              currentView === 'sell' ? 'text-orange-600 dark:text-orange-500' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Store className="w-5 h-5 mb-0.5" />
+            <span>Apply to Sell</span>
+          </button>
+        )}
 
         {/* Orders */}
         <button
