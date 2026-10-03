@@ -708,7 +708,23 @@ class DatabaseService {
     return this.getOrders(undefined, sellerId);
   }
 
-  async createOrder(orderData: Omit<Order, 'id'> | Partial<Order>): Promise<string> {
+  async getOrderById(orderId: string): Promise<Order | null> {
+    try {
+      const snap = await withTimeout(getDoc(doc(db, 'orders', orderId)), 8000);
+      if (snap.exists()) {
+        return snap.data() as Order;
+      }
+    } catch (e: any) {
+      console.error('Firestore getOrderById error:', e?.message || e);
+    }
+    return null;
+  }
+
+  async logAuditEvent(logData: Omit<AuditLog, 'id' | 'timestamp'>): Promise<AuditLog> {
+    return this.createAuditLog(logData);
+  }
+
+  async createOrder(orderData: Partial<Order>): Promise<string> {
     const orderId = orderData.id || `SC-ORD-${Date.now().toString().slice(-6)}`;
     const fullOrder: Order = {
       id: orderId,
@@ -724,7 +740,6 @@ class DatabaseService {
         fullName: orderData.buyerName || 'Valued Customer',
         phone: orderData.buyerPhone || '+256700000000',
         district: 'Busia',
-        subCountyOrTown: 'Busia Town',
         streetAddress: 'Main Road',
       },
       subtotalUGX: orderData.subtotalUGX || 0,
@@ -737,7 +752,7 @@ class DatabaseService {
       paymentStatus: orderData.paymentStatus || 'paid',
       status: orderData.status || 'Confirmed',
       escrowStatus: orderData.escrowStatus || 'HELD_IN_ESCROW',
-      trackingSteps: orderData.trackingSteps || [
+      trackingSteps: (orderData as any).trackingSteps || [
         {
           status: 'Confirmed',
           label: 'Order Placed & Escrow Paid',
@@ -850,7 +865,15 @@ class DatabaseService {
         buyerEmail: params.buyer.email,
         sellerId,
         sellerStoreName: group.seller?.storeName || 'Verified Merchant',
-        items: group.items,
+        items: group.items.map((ci) => ({
+          productId: ci.product.id,
+          title: ci.product.title,
+          priceUGX: ci.product.priceUGX,
+          quantity: ci.quantity,
+          image: ci.product.images?.[0] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+          category: ci.product.category,
+        })),
+        subtotalUGX: subTotalUGX,
         subTotalUGX,
         deliveryFeeUGX,
         totalUGX,
@@ -1803,16 +1826,19 @@ class DatabaseService {
       id: sellerId,
       userId: targetUser.id,
       storeName: app.storeName,
+      slug: app.storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       description: app.description,
       bio: `${app.storeName} - Verified Ugandan merchant on SwiftCart.`,
       phone: app.phone,
       email: app.email,
+      isPhoneVerified: true,
       district: app.district,
       address: app.address,
       isVerified: true,
       status: 'approved',
       verificationStatus: 'verified',
       rating: 5.0,
+      reviewCount: 0,
       totalSalesUGX: 0,
       availableBalanceUGX: 0,
       escrowBalanceUGX: 0,

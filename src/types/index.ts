@@ -160,6 +160,7 @@ export interface Seller {
   storeName: string;
   slug: string;
   phone: string;
+  email?: string;
   isPhoneVerified: boolean;
   isVerified: boolean; // Verified seller badge after document review
   verificationDocumentUrl?: string;
@@ -172,15 +173,21 @@ export interface Seller {
   localZone?: string;
   availableZones?: string[];
   bio: string;
+  description?: string;
   logoUrl?: string;
   bannerUrl?: string;
   status: SellerStatus;
+  verificationStatus?: string;
   rating: number;
   reviewCount: number;
+  totalSalesUGX?: number;
+  availableBalanceUGX?: number;
+  escrowBalanceUGX?: number;
   momoNumber?: string;
   momoNetwork?: 'MTN' | 'Airtel';
   tinNumber?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface WishlistItem {
@@ -195,7 +202,7 @@ export interface AppNotification {
   userId: string;
   title: string;
   message: string;
-  type: 'order_status' | 'new_order' | 'seller_verification' | 'system';
+  type: 'order_status' | 'new_order' | 'seller_verification' | 'system' | 'product_qc';
   read: boolean;
   orderId?: string;
   createdAt: string;
@@ -364,8 +371,10 @@ export interface DeliveryAddress {
   fullName: string;
   phone: string;
   district: string;
-  divisionOrTown: string;
+  divisionOrTown?: string;
+  subCountyOrTown?: string;
   streetAddress: string;
+  zone?: string;
   notes?: string;
   gpsCoordinates?: {
     latitude: number;
@@ -414,7 +423,10 @@ export interface Order {
   deliveryPodOtp?: string;
   escrowStatus?: EscrowState;
   riderDetails?: RiderHandoverDetails;
-  trackingHistory: OrderTrackingStep[];
+  trackingHistory?: OrderTrackingStep[];
+  trackingSteps?: any[];
+  deliveryZone?: string;
+  subTotalUGX?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -431,7 +443,7 @@ export interface RiderHandoverDetails {
   dispatchedAt: string;
 }
 
-export type EscrowState = 'HELD' | 'RELEASED' | 'REFUNDED';
+export type EscrowState = 'HELD' | 'RELEASED' | 'REFUNDED' | 'HELD_IN_ESCROW' | 'DISPUTED';
 
 export interface EscrowLedgerRecord {
   id: string;
