@@ -9,8 +9,19 @@ import {
   AlertCircle,
   HelpCircle,
   RotateCcw,
+  Store,
+  ShieldAlert,
+  Crown,
+  ShoppingBag,
 } from 'lucide-react';
 import { float32To16BitPCMBase64, base64PCMToAudioBuffer } from '../utils/audioUtils';
+import { useAuth } from '../context/AuthContext';
+import {
+  resolveAIPersona,
+  getPersonaBadgeInfo,
+  getPersonaWelcomeMessage,
+  AIPersonaRole,
+} from '../services/aiContextService';
 
 interface GeminiLiveVoiceModalProps {
   isOpen: boolean;
@@ -23,18 +34,38 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
   onClose,
   onOpenTextChat,
 }) => {
+  const { currentUser, currentSeller } = useAuth();
+  const [persona, setPersona] = useState<AIPersonaRole>('BUYER');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setPersona(resolveAIPersona(currentUser, window.location.pathname));
+    }
+  }, [currentUser, isOpen]);
+
+  const personaBadge = getPersonaBadgeInfo(persona);
+
   const [connectionStatus, setConnectionStatus] = useState<
     'idle' | 'connecting' | 'connected' | 'error' | 'closed'
   >('idle');
   const [isMuted, setIsMuted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isModelSpeaking, setIsModelSpeaking] = useState(false);
-  const [transcripts, setTranscripts] = useState<Array<{ role: 'ai' | 'user'; text: string }>>([
-    {
-      role: 'ai',
-      text: 'Habari! I am your SwiftCart Live Voice Assistant. Ask me anything about products, prices in UGX, or delivery to Busia, Busitema, Dabani, Sibanga, and Jinja.',
-    },
-  ]);
+  const [transcripts, setTranscripts] = useState<Array<{ role: 'ai' | 'user'; text: string }>>([]);
+
+  useEffect(() => {
+    setTranscripts([
+      {
+        role: 'ai',
+        text:
+          persona === 'SELLER'
+            ? `Habari ${currentSeller?.storeName || 'Merchant'}! I am your SwiftCart Live Voice Copilot. Ask me about your products, Phase 5 rider handover OTP, or Tuesday payouts.`
+            : persona === 'ADMIN' || persona === 'SUPER_ADMIN'
+            ? `Operations Voice Copilot ready. Ask for summaries of KYC queues, unverified riders, or Eastern Uganda logistics.`
+            : 'Habari! I am your SwiftCart Live Voice Assistant for Busia, Busitema, and Eastern Uganda. Ask me about products, UGX prices, or express delivery.',
+      },
+    ]);
+  }, [persona, currentSeller]);
 
   // Audio references
   const wsRef = useRef<WebSocket | null>(null);
@@ -70,11 +101,9 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
 
     try {
       // 1. Initialize browser AudioContexts
-      // Input: 16000Hz PCM required for Gemini Live API
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 16000,
       });
-      // Output: 24000Hz PCM returned by Gemini Live API
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 24000,
       });
@@ -99,7 +128,8 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
 
       // 3. Connect to server-side WebSocket proxy for gemini-3.8-live
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/live-ws`;
+      const userName = encodeURIComponent(currentUser?.name || 'Guest');
+      const wsUrl = `${protocol}//${window.location.host}/api/live-ws?persona=${persona}&user=${userName}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -117,7 +147,6 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             setIsModelSpeaking(true);
             playAudioChunk(data.audio);
           } else if (data.type === 'interrupted') {
-            // User interrupted model speaking: stop queued playback
             stopCurrentAudioPlayback();
             setIsModelSpeaking(false);
           } else if (data.type === 'transcript' && data.text) {
@@ -141,10 +170,9 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
         setConnectionStatus('closed');
       };
 
-      // 4. Capture microphone audio and stream PCM to WebSocket
+      // 4. Capture microphone audio with optimized 2048 buffer for low latency
       const source = inputCtx.createMediaStreamSource(stream);
-      // Buffer size 2048 or 4096 gives balanced latency
-      const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+      const processor = inputCtx.createScriptProcessor(2048, 1, 1);
       scriptProcessorRef.current = processor;
 
       processor.onaudioprocess = (e) => {
@@ -152,7 +180,6 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
         const inputData = e.inputBuffer.getChannelData(0);
-        // Convert to 16-bit linear PCM base64
         const base64Pcm = float32To16BitPCMBase64(inputData);
         wsRef.current.send(JSON.stringify({ audio: base64Pcm }));
       };
@@ -160,48 +187,16 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
       source.connect(processor);
       processor.connect(inputCtx.destination);
 
-      // 5. Start real-time waveform visualizer
-      startVisualizer(stream);
+      // 5. Start canvas visualizer loop
+      startVisualizer(source, inputCtx);
     } catch (err: any) {
       console.error('Error starting live voice session:', err);
       setErrorMessage(
-        err?.message?.includes('Permission denied')
-          ? 'Microphone permission was denied. Please allow microphone access in your browser.'
-          : err?.message || 'Unable to access microphone or connect to Live API.'
+        err.name === 'NotAllowedError'
+          ? 'Microphone permission was denied. Please allow microphone access in your browser settings.'
+          : `Failed to initialize voice session: ${err.message || 'Check audio devices'}`
       );
       setConnectionStatus('error');
-    }
-  };
-
-  const playAudioChunk = (base64Audio: string) => {
-    const audioCtx = outputAudioCtxRef.current;
-    if (!audioCtx) return;
-
-    try {
-      const audioBuffer = base64PCMToAudioBuffer(audioCtx, base64Audio, 24000);
-      const sourceNode = audioCtx.createBufferSource();
-      sourceNode.buffer = audioBuffer;
-      sourceNode.connect(audioCtx.destination);
-
-      const currentTime = audioCtx.currentTime;
-      // Schedule gapless playback
-      const startTime = Math.max(currentTime, nextStartTimeRef.current);
-      sourceNode.start(startTime);
-      nextStartTimeRef.current = startTime + audioBuffer.duration;
-
-      sourceNode.onended = () => {
-        if (audioCtx.currentTime >= nextStartTimeRef.current - 0.05) {
-          setIsModelSpeaking(false);
-        }
-      };
-    } catch (err) {
-      console.error('Error playing audio chunk:', err);
-    }
-  };
-
-  const stopCurrentAudioPlayback = () => {
-    if (outputAudioCtxRef.current) {
-      nextStartTimeRef.current = outputAudioCtxRef.current.currentTime;
     }
   };
 
@@ -221,18 +216,20 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
       mediaStreamRef.current = null;
     }
 
-    if (inputAudioCtxRef.current) {
+    if (inputAudioCtxRef.current && inputAudioCtxRef.current.state !== 'closed') {
       inputAudioCtxRef.current.close().catch(() => {});
       inputAudioCtxRef.current = null;
     }
 
-    if (outputAudioCtxRef.current) {
+    if (outputAudioCtxRef.current && outputAudioCtxRef.current.state !== 'closed') {
       outputAudioCtxRef.current.close().catch(() => {});
       outputAudioCtxRef.current = null;
     }
 
     if (wsRef.current) {
-      wsRef.current.close();
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
       wsRef.current = null;
     }
 
@@ -240,62 +237,87 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
     setIsModelSpeaking(false);
   };
 
-  // Canvas visualizer animation
-  const startVisualizer = (stream: MediaStream) => {
-    if (!canvasRef.current || !inputAudioCtxRef.current) return;
+  const playAudioChunk = (base64Pcm: string) => {
+    if (!outputAudioCtxRef.current) return;
 
     try {
-      const audioCtx = inputAudioCtxRef.current;
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
+      const audioCtx = outputAudioCtxRef.current;
+      const audioBuffer = base64PCMToAudioBuffer(base64Pcm, audioCtx, 24000);
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      const sourceNode = audioCtx.createBufferSource();
+      sourceNode.buffer = audioBuffer;
+      sourceNode.connect(audioCtx.destination);
 
-      const draw = () => {
-        animationFrameIdRef.current = requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
+      const currentTime = audioCtx.currentTime;
+      const startTime = Math.max(currentTime, nextStartTimeRef.current);
+      sourceNode.start(startTime);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      nextStartTimeRef.current = startTime + audioBuffer.duration;
 
-        const width = canvas.width;
-        const height = canvas.height;
-        const barWidth = (width / bufferLength) * 2;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const val = dataArray[i];
-          const percent = val / 255;
-          const barHeight = Math.max(4, percent * height * 0.9);
-
-          // Orange and Amber warm glowing gradient
-          ctx.fillStyle = isModelSpeaking
-            ? '#38bdf8' // Sky blue when Gemini is speaking
-            : isMuted
-            ? '#94a3b8' // Slate when muted
-            : '#ea580c'; // Orange when user is speaking
-
-          const y = (height - barHeight) / 2;
-          ctx.beginPath();
-          ctx.roundRect(x, y, barWidth - 2, barHeight, 3);
-          ctx.fill();
-
-          x += barWidth;
+      sourceNode.onended = () => {
+        if (audioCtx.currentTime >= nextStartTimeRef.current - 0.05) {
+          setIsModelSpeaking(false);
         }
       };
-
-      draw();
     } catch (e) {
-      console.error('Visualizer error:', e);
+      console.error('Error playing audio chunk:', e);
+      setIsModelSpeaking(false);
     }
   };
 
-  const handleSendPromptText = (text: string) => {
+  const stopCurrentAudioPlayback = () => {
+    if (outputAudioCtxRef.current) {
+      nextStartTimeRef.current = outputAudioCtxRef.current.currentTime;
+    }
+  };
+
+  const startVisualizer = (sourceNode: MediaStreamAudioSourceNode, audioCtx: AudioContext) => {
+    if (!canvasRef.current) return;
+
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    sourceNode.connect(analyser);
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const canvas = canvasRef.current;
+    const canvasCtx = canvas.getContext('2d');
+    if (!canvasCtx) return;
+
+    const draw = () => {
+      animationFrameIdRef.current = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * (canvas.height * 0.85);
+
+        canvasCtx.fillStyle = isMutedRef.current
+          ? '#94a3b8'
+          : isModelSpeaking
+          ? '#38bdf8'
+          : '#ea580c';
+
+        canvasCtx.beginPath();
+        canvasCtx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, 3);
+        canvasCtx.fill();
+
+        x += barWidth + 1;
+      }
+    };
+
+    draw();
+  };
+
+  const handleToggleMute = () => {
+    setIsMuted((prev) => !prev);
+  };
+
+  const handleSendQuickText = (text: string) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ text }));
       setTranscripts((prev) => [...prev, { role: 'user', text }]);
@@ -314,16 +336,16 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
               <Sparkles className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-extrabold text-sm sm:text-base text-white">
                   Gemini 3.8 Live Voice
                 </h3>
-                <span className="text-[9px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">
-                  Real-time
+                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${personaBadge.badgeColor} ${personaBadge.borderColor}`}>
+                  {personaBadge.label}
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400">
-                Bidirectional voice assistant for Ugandan shopping
+                Low-latency voice assistant • Eastern Uganda Focus
               </p>
             </div>
           </div>
@@ -336,7 +358,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
                   onClose();
                   onOpenTextChat();
                 }}
-                className="text-xs px-2.5 py-1 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-colors shadow-xs"
+                className="text-xs px-2.5 py-1 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-colors shadow-xs cursor-pointer"
                 title="Switch to Smart Text Chat"
               >
                 Text Chat
@@ -344,7 +366,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -438,20 +460,31 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             {/* Quick Voice Prompt Suggestions */}
             <div className="w-full space-y-1.5 pt-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
-                <Radio className="w-3 h-3 text-orange-400" /> Try speaking or clicking:
+                <Radio className="w-3 h-3 text-orange-400" /> Eastern Uganda Prompts:
               </span>
               <div className="flex flex-wrap gap-1.5 justify-center">
-                {[
-                  'Best laptops for students in Kampala?',
-                  'How fast is nationwide delivery in Uganda?',
-                  'How does the 100% Prepaid MoMo Escrow work?',
-                  'Are warranty repairs handled locally?',
-                ].map((suggestion) => (
+                {(persona === 'SELLER'
+                  ? [
+                      'How to generate rider handover OTP?',
+                      'When are Tuesday payouts processed?',
+                      'How to format specifications for electronics?',
+                    ]
+                  : persona === 'ADMIN'
+                  ? [
+                      'Summarize pending KYC documents',
+                      'Check unverified rider dispatches',
+                      'Review disputed delivery policy',
+                    ]
+                  : [
+                      'Delivery times to Busitema & Busia?',
+                      'How does MoMo Escrow protect my order?',
+                      'Best solar kits for Eastern Uganda homes?',
+                    ]
+                ).map((suggestion) => (
                   <button
                     key={suggestion}
-                    onClick={() => handleSendPromptText(suggestion)}
-                    disabled={connectionStatus !== 'connected'}
-                    className="text-[10px] sm:text-[11px] px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 hover:text-orange-300 text-slate-300 transition-colors border border-slate-700/60 disabled:opacity-50"
+                    onClick={() => handleSendQuickText(suggestion)}
+                    className="text-[10px] sm:text-[11px] px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
                   >
                     "{suggestion}"
                   </button>
@@ -460,105 +493,51 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
             </div>
           </div>
 
-          {/* Voice Connection Notice / Fallback to Text */}
-          {errorMessage && (
-            <div className="mx-4 my-2.5 p-3 rounded-2xl bg-slate-800/90 border border-orange-500/40 text-xs text-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-white block">Real-time Audio Offline</span>
-                  <span className="text-[11px] text-slate-300">
-                    Live bidirectional audio requires an active WebSocket server. Switch to Smart Text Assistant for instant answers!
-                  </span>
-                </div>
-              </div>
-              {onOpenTextChat && (
-                <button
-                  onClick={() => {
-                    stopLiveSession();
-                    onClose();
-                    onOpenTextChat();
-                  }}
-                  className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shrink-0 shadow-md transition-colors"
+          {/* Real-time Voice Transcripts */}
+          <div className="p-3.5 sm:p-4 space-y-2.5 bg-slate-950/40">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Spoken Transcript:
+            </span>
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              {transcripts.map((t, idx) => (
+                <div
+                  key={idx}
+                  className={`text-xs p-2.5 rounded-xl ${
+                    t.role === 'ai'
+                      ? 'bg-slate-800/80 text-slate-200 border border-slate-700/60'
+                      : 'bg-orange-950/40 text-orange-200 border border-orange-800/40 ml-4'
+                  }`}
                 >
-                  Open Text Chat
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Live Conversation Transcript Feed */}
-          <div className="px-4 py-3 border-t border-slate-800 bg-slate-950/40 space-y-2 text-xs">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 pb-1 font-bold">
-              <span>CONVERSATION TRANSCRIPT</span>
-              <span className="text-orange-400">Continuous 2-Way Audio</span>
-            </div>
-
-            {transcripts.map((t, idx) => (
-              <div
-                key={idx}
-                className={`p-2.5 rounded-2xl ${
-                  t.role === 'ai'
-                    ? 'bg-slate-900 border border-slate-800 text-slate-200 ml-0 mr-4'
-                    : 'bg-orange-950/50 border border-orange-800/40 text-orange-200 ml-4 mr-0'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold mb-0.5 text-[10px] text-slate-400">
-                  {t.role === 'ai' ? (
-                    <Sparkles className="w-3 h-3 text-sky-400" />
-                  ) : (
-                    <Mic className="w-3 h-3 text-orange-400" />
-                  )}
-                  <span>{t.role === 'ai' ? 'Gemini 3.8 Live' : 'You (Spoken)'}</span>
+                  <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400 block mb-0.5">
+                    {t.role === 'ai' ? 'Gemini 3.8 Live' : 'You (Spoken)'}
+                  </span>
+                  <p className="leading-relaxed">{t.text}</p>
                 </div>
-                <p className="leading-relaxed text-[11px]">{t.text}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Footer Controls */}
-        <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-900 flex items-center justify-between gap-2.5 shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              disabled={connectionStatus !== 'connected'}
-              className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
-                isMuted
-                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              } disabled:opacity-50`}
-            >
-              {isMuted ? (
-                <>
-                  <MicOff className="w-3.5 h-3.5" /> Unmute
-                </>
-              ) : (
-                <>
-                  <Mic className="w-3.5 h-3.5" /> Mute
-                </>
-              )}
-            </button>
-
-            {connectionStatus === 'error' && (
-              <button
-                onClick={startLiveSession}
-                className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                title="Retry connecting to audio server"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Retry
-              </button>
-            )}
-          </div>
+        <div className="p-3 sm:p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between shrink-0">
+          <button
+            onClick={handleToggleMute}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              isMuted
+                ? 'bg-amber-600/20 text-amber-300 border border-amber-500/40 hover:bg-amber-600/30'
+                : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+            }`}
+          >
+            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            <span>{isMuted ? 'Unmute Mic' : 'Mute Mic'}</span>
+          </button>
 
           <button
-            onClick={() => {
-              stopLiveSession();
-              onClose();
-            }}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-rose-900/60 hover:text-rose-200 text-slate-300 font-bold text-xs transition-colors"
+            onClick={stopLiveSession}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
-            Close
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset</span>
           </button>
         </div>
       </div>

@@ -167,13 +167,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!currentUser) {
-      if (onOpenAuth) {
-        onClose();
-        onOpenAuth();
-      } else {
-        setErrorMessage('Please sign in to place an order.');
-      }
+    if (!fullName.trim() || !phone.trim()) {
+      setErrorMessage('Please provide your recipient name and phone number for delivery.');
       return;
     }
 

@@ -22,6 +22,9 @@ import { AdminPanel } from './components/AdminPanel';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { RouteGuard } from './components/RouteGuard';
 import { ApplyToSellModal } from './components/ApplyToSellModal';
+import { SellerInquiryPage } from './components/SellerInquiryPage';
+import { SellerRegisterGatedPage } from './components/SellerRegisterGatedPage';
+import { ProductDetailPage } from './components/ProductDetailPage';
 import { AuthModal } from './components/AuthModal';
 import { DemoSwitcherModal } from './components/DemoSwitcherModal';
 import { NotificationModal } from './components/NotificationModal';
@@ -43,25 +46,52 @@ import {
   Lock,
 } from 'lucide-react';
 
-export type AppView = 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell';
+export type AppView =
+  | 'storefront'
+  | 'product_detail'
+  | 'seller'
+  | 'seller_register'
+  | 'admin'
+  | 'admin_applications'
+  | 'admin_kyc'
+  | 'admin_qc'
+  | 'superadmin'
+  | 'orders'
+  | 'wishlist'
+  | 'sell';
 
 function pathToView(pathname: string): AppView {
   const clean = pathname.toLowerCase().replace(/\/$/, '');
+  if (clean.startsWith('/product/') || clean.startsWith('/p/')) return 'product_detail';
+  if (clean.startsWith('/seller/register')) return 'seller_register';
   if (clean.startsWith('/seller')) return 'seller';
   if (clean.startsWith('/superadmin')) return 'superadmin';
+  if (clean.startsWith('/admin/seller-applications')) return 'admin_applications';
+  if (clean.startsWith('/admin/kyc-approvals')) return 'admin_kyc';
+  if (clean.startsWith('/admin/products/pending') || clean.startsWith('/admin/qc')) return 'admin_qc';
   if (clean.startsWith('/admin')) return 'admin';
   if (clean.startsWith('/orders')) return 'orders';
   if (clean.startsWith('/wishlist')) return 'wishlist';
-  if (clean.startsWith('/sell')) return 'sell';
+  if (clean === '/sell') return 'sell';
   return 'storefront';
 }
 
-function viewToPath(view: AppView): string {
+function viewToPath(view: AppView, selectedProduct?: Product | null): string {
   switch (view) {
+    case 'product_detail':
+      return selectedProduct ? `/product/${selectedProduct.slug || selectedProduct.id}` : '/';
     case 'seller':
       return '/seller/dashboard';
+    case 'seller_register':
+      return '/seller/register';
     case 'admin':
       return '/admin';
+    case 'admin_applications':
+      return '/admin/seller-applications';
+    case 'admin_kyc':
+      return '/admin/kyc-approvals';
+    case 'admin_qc':
+      return '/admin/products/pending';
     case 'superadmin':
       return '/superadmin';
     case 'orders':
@@ -78,7 +108,7 @@ function viewToPath(view: AppView): string {
 
 function MarketplaceApp() {
   const { currentUser, isSeller } = useAuth();
-  const { setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen } = useCart();
 
   // Navigation view: 'storefront' | 'seller' | 'admin' | 'superadmin' | 'orders' | 'wishlist' | 'sell'
   const [currentView, setCurrentView] = useState<AppView>(() => pathToView(window.location.pathname));
@@ -104,24 +134,48 @@ function MarketplaceApp() {
   const [isGeminiVoiceOpen, setIsGeminiVoiceOpen] = useState(false);
 
   // Navigation handler with browser URL sync
-  const handleNavigate = useCallback((view: AppView) => {
+  const handleNavigate = useCallback((view: AppView, prod?: Product | null) => {
     setCurrentView(view);
-    const newPath = viewToPath(view);
+    if (prod) setSelectedProduct(prod);
+    const newPath = viewToPath(view, prod || selectedProduct);
     if (window.location.pathname !== newPath) {
       window.history.pushState({ view }, '', newPath);
     }
     if (view === 'sell') {
       setIsApplyToSellOpen(true);
+    } else {
+      setIsApplyToSellOpen(false);
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedProduct]);
+
+  const handleOpenProductDetail = useCallback((prod: Product) => {
+    setSelectedProduct(prod);
+    setCurrentView('product_detail');
+    const newPath = `/product/${prod.slug || prod.id}`;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({ view: 'product_detail' }, '', newPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   useEffect(() => {
     // 1. Listen for browser Back/Forward navigation
     const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
       const view = pathToView(window.location.pathname);
       setCurrentView(view);
+      if (view === 'product_detail') {
+        const slugOrId = path.replace(/^\/(product|p)\//, '');
+        const found =
+          products.find((p) => (p.slug || '').toLowerCase() === slugOrId || p.id.toLowerCase() === slugOrId) ||
+          SEED_PRODUCTS.find((p) => (p.slug || '').toLowerCase() === slugOrId || p.id.toLowerCase() === slugOrId);
+        if (found) setSelectedProduct(found);
+      }
       if (view === 'sell') {
         setIsApplyToSellOpen(true);
+      } else {
+        setIsApplyToSellOpen(false);
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -135,7 +189,7 @@ function MarketplaceApp() {
 
     const setupLiveMarketplace = async () => {
       try {
-        await dbService.initDatabase();
+        dbService.initDatabase();
 
         // Initial fetch
         const [prods, sllrs] = await Promise.all([
@@ -144,6 +198,20 @@ function MarketplaceApp() {
         ]);
         if (prods && prods.length > 0) setProducts(prods);
         if (sllrs && sllrs.length > 0) setSellers(sllrs);
+
+        // Check if initial URL is a Product Detail Page
+        const initialPath = window.location.pathname.toLowerCase().replace(/\/$/, '');
+        if (initialPath.startsWith('/product/') || initialPath.startsWith('/p/')) {
+          const slugOrId = initialPath.replace(/^\/(product|p)\//, '');
+          const all = prods && prods.length > 0 ? prods : SEED_PRODUCTS;
+          const matched = all.find(
+            (p) => (p.slug || '').toLowerCase() === slugOrId || p.id.toLowerCase() === slugOrId
+          );
+          if (matched) {
+            setSelectedProduct(matched);
+            setCurrentView('product_detail');
+          }
+        }
 
         // Real-time live listener for products
         unsubProducts = dbService.subscribeToProducts((liveProds) => {
@@ -171,7 +239,7 @@ function MarketplaceApp() {
     const params = new URLSearchParams(window.location.search);
     const orderTrackingId = params.get('OrderTrackingId') || params.get('orderTrackingId');
     const orderRef = params.get('OrderMerchantReference') || params.get('orderMerchantReference');
-    const path = window.location.pathname;
+    const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
 
     if (orderTrackingId || path.startsWith('/orders')) {
       handleNavigate('orders');
@@ -183,7 +251,7 @@ function MarketplaceApp() {
       if (orderTrackingId) {
         dbService.updateOrderPaymentStatus(orderRef || orderTrackingId, 'paid');
       }
-    } else if (path.startsWith('/sell')) {
+    } else if (path === '/sell') {
       setIsApplyToSellOpen(true);
     }
 
@@ -193,20 +261,22 @@ function MarketplaceApp() {
       if (unsubProducts) unsubProducts();
       if (unsubSellers) unsubSellers();
     };
-  }, [handleNavigate]);
+  }, [handleNavigate, products]);
 
-  // Filter products by Category, Seller, Search Query, and Express status
+  // Filter products by Category, Seller, Search Query, Express status, and Moderation Status
   const filteredProducts = products.filter((p) => {
+    // Only approved products are shown on public buyer catalog (seed items default to APPROVED)
+    if (p.status && p.status !== 'APPROVED') return false;
     if (selectedCategory && p.category !== selectedCategory) return false;
     if (selectedSellerId && p.sellerId !== selectedSellerId) return false;
     if (expressOnly && !p.isExpressDelivery) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = p.title.toLowerCase().includes(q);
-      const matchDesc = p.description.toLowerCase().includes(q);
-      const matchCategory = p.category.toLowerCase().includes(q);
-      const matchSeller = p.sellerStoreName.toLowerCase().includes(q);
+      const matchTitle = (p.title || p.name || '').toLowerCase().includes(q);
+      const matchDesc = (p.description || '').toLowerCase().includes(q);
+      const matchCategory = (p.category || '').toLowerCase().includes(q);
+      const matchSeller = (p.sellerStoreName || '').toLowerCase().includes(q);
       return matchTitle || matchDesc || matchCategory || matchSeller;
     }
     return true;
@@ -225,7 +295,22 @@ function MarketplaceApp() {
     }
   };
 
-  const isPortalView = currentView === 'seller' || currentView === 'admin' || currentView === 'superadmin';
+  const getQueryToken = () => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('token') || '';
+  };
+
+  const isPortalView =
+    currentView === 'product_detail' ||
+    currentView === 'seller' ||
+    currentView === 'seller_register' ||
+    currentView === 'admin' ||
+    currentView === 'admin_applications' ||
+    currentView === 'admin_kyc' ||
+    currentView === 'admin_qc' ||
+    currentView === 'superadmin' ||
+    currentView === 'sell';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200 w-full max-w-full overflow-x-hidden relative">
@@ -441,7 +526,7 @@ function MarketplaceApp() {
                   <ProductCard
                     key={product.id}
                     product={product}
-                    onOpenDetail={setSelectedProduct}
+                    onOpenDetail={handleOpenProductDetail}
                     onFilterSeller={(sId) => setSelectedSellerId(sId)}
                   />
                 ))}
@@ -495,79 +580,55 @@ function MarketplaceApp() {
           </div>
         )}
 
+        {/* Mobile-First Product Detail Page (/product/:slug) */}
+        {currentView === 'product_detail' && selectedProduct && (
+          <ProductDetailPage
+            product={selectedProduct}
+            onBack={() => handleNavigate('storefront')}
+            onOpenCart={() => setIsCartOpen(true)}
+            onBuyNow={(prod, variant, qty) => {
+              addToCart(prod, variant, qty || 1, false);
+              setIsCartOpen(false);
+              setIsCheckoutOpen(true);
+            }}
+            onViewSeller={(sellerId) => {
+              setSelectedSellerId(sellerId);
+              handleNavigate('storefront');
+            }}
+            onOpenSearch={() => {
+              handleNavigate('storefront');
+            }}
+            allProducts={products}
+            onSelectProduct={handleOpenProductDetail}
+          />
+        )}
+
         {/* Wishlist View */}
         {currentView === 'wishlist' && (
           <WishlistView
             onBackToShopping={() => handleNavigate('storefront')}
-            onOpenProduct={setSelectedProduct}
+            onOpenProduct={handleOpenProductDetail}
           />
         )}
 
-        {/* Dedicated /sell Gateway View */}
+        {/* Public Seller Inquiry Gateway (/sell) */}
         {currentView === 'sell' && (
-          <div className="max-w-4xl mx-auto px-4 py-12 text-center space-y-8 animate-in fade-in duration-300">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center mx-auto text-orange-600 dark:text-orange-400 shadow-xl">
-              <Store className="w-8 h-8 sm:w-10 sm:h-10" />
-            </div>
+          <SellerInquiryPage
+            onBackToShopping={() => handleNavigate('storefront')}
+            onNavigateToLogin={() => {
+              setAuthDefaultRole('seller');
+              setIsAuthOpen(true);
+            }}
+          />
+        )}
 
-            <div className="space-y-3 max-w-2xl mx-auto">
-              <span className="text-xs font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-3 py-1 rounded-full border border-orange-200 dark:border-orange-800">
-                Merchant Onboarding Desk
-              </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white">
-                Sell Your Products on SwiftCart Uganda
-              </h1>
-              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-                To protect our buyers and maintain verified merchant authenticity, all seller onboarding is handled directly through our Administration Desk. Contact the admin via WhatsApp or phone call to receive the official registration form.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left max-w-3xl mx-auto">
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center font-black text-sm">1</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Contact Administration</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Reach out via WhatsApp (0776155353) or call our administration desk to discuss your store.</p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center font-black text-sm">2</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Receive & Fill Official Form</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Admin sends you the official registration and KYC document packet directly.</p>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-black text-sm">3</div>
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Account Provisioning</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Receive merchant credentials, access <code>/seller/dashboard</code>, and start selling.</p>
-              </div>
-            </div>
-
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-              <a
-                href="https://wa.me/256776155353?text=Hello%20SwiftCart%20Super%20Admin%2C%20I%20am%20a%20merchant%20interested%20in%20selling%20on%20SwiftCart%20Uganda.%20Kindly%20send%20me%20the%20official%20merchant%20onboarding%20and%20KYC%20registration%20form."
-                target="_blank"
-                rel="noreferrer"
-                className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-xl transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                <span>Chat on WhatsApp (0776155353)</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
-
-              <a
-                href="tel:+256776155353"
-                className="px-6 py-3.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800 font-bold text-sm rounded-2xl transition-colors flex items-center gap-2"
-              >
-                <span>Call Onboarding Desk (0776155353)</span>
-              </a>
-
-              <button
-                onClick={() => handleNavigate('storefront')}
-                className="px-6 py-3.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-2xl transition-colors cursor-pointer"
-              >
-                Return to Storefront
-              </button>
-            </div>
-          </div>
+        {/* Gated Seller Registration & KYC Page (/seller/register?token=...) */}
+        {currentView === 'seller_register' && (
+          <SellerRegisterGatedPage
+            token={getQueryToken()}
+            onSuccessNavigate={() => handleNavigate('seller')}
+            onBackToShopping={() => handleNavigate('storefront')}
+          />
         )}
 
         {/* Guarded Seller Portal (/seller/*) */}
@@ -587,8 +648,11 @@ function MarketplaceApp() {
           </RouteGuard>
         )}
 
-        {/* Guarded Operations Admin Portal (/admin/*) */}
-        {currentView === 'admin' && (
+        {/* Guarded Operations Admin Portal (/admin, /admin/seller-applications, /admin/kyc-approvals, /admin/products/pending) */}
+        {(currentView === 'admin' ||
+          currentView === 'admin_applications' ||
+          currentView === 'admin_kyc' ||
+          currentView === 'admin_qc') && (
           <RouteGuard
             allowedRoles={['ADMIN', 'SUPER_ADMIN']}
             portalName="Operations Admin Portal"
@@ -600,7 +664,18 @@ function MarketplaceApp() {
             onOpenDemoSwitcher={() => setIsDemoSwitcherOpen(true)}
             onBackToHome={() => handleNavigate('storefront')}
           >
-            <AdminPanel onBackToShopping={() => handleNavigate('storefront')} />
+            <AdminPanel
+              initialTab={
+                currentView === 'admin_applications'
+                  ? 'leads'
+                  : currentView === 'admin_kyc'
+                  ? 'kyc'
+                  : currentView === 'admin_qc'
+                  ? 'qc'
+                  : 'triage'
+              }
+              onBackToShopping={() => handleNavigate('storefront')}
+            />
           </RouteGuard>
         )}
 
@@ -747,15 +822,17 @@ function MarketplaceApp() {
   )}
 
       {/* Modals */}
-      <ProductDetailModal
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-        onViewSeller={(sId) => {
-          setSelectedProduct(null);
-          setSelectedSellerId(sId);
-          handleNavigate('storefront');
-        }}
-      />
+      {currentView !== 'product_detail' && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onViewSeller={(sId) => {
+            setSelectedProduct(null);
+            setSelectedSellerId(sId);
+            handleNavigate('storefront');
+          }}
+        />
+      )}
 
       <CartDrawer
         onOpenCheckout={() => setIsCheckoutOpen(true)}
@@ -809,7 +886,7 @@ function MarketplaceApp() {
       />
 
       <ApplyToSellModal
-        isOpen={isApplyToSellOpen}
+        isOpen={isApplyToSellOpen && currentView !== 'seller_register' && !isPortalView}
         onClose={() => {
           setIsApplyToSellOpen(false);
           if (currentView === 'sell') {

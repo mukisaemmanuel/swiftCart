@@ -18,6 +18,9 @@ import {
   MessageCircle,
   Share2,
   ExternalLink,
+  ShieldCheck,
+  Phone,
+  Lock,
 } from 'lucide-react';
 
 interface OrderTrackingViewProps {
@@ -116,12 +119,15 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
       case 'Pending':
         return 1;
       case 'Confirmed':
+      case 'Ready_For_Pickup':
         return 2;
       case 'Shipped':
+      case 'In_Transit':
         return 3;
       case 'Delivered':
         return 4;
       case 'Cancelled':
+      case 'Disputed':
         return -1;
       default:
         return 1;
@@ -399,6 +405,68 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/40 space-y-4 text-xs">
+                    {/* PHASE 5: PROOF OF DELIVERY (POD) SECURITY PASS */}
+                    {(order.status === 'Shipped' || order.status === 'In_Transit' || order.riderDetails) && (
+                      <div className="p-4 rounded-2xl bg-linear-to-br from-amber-500/10 via-orange-500/10 to-transparent border-2 border-orange-400/80 dark:border-orange-500/60 shadow-xs space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-orange-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                              <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>Anti-Theft Proof of Delivery (POD) Security Pass</span>
+                                <span className="text-[9px] bg-orange-600 text-white font-black px-1.5 py-0.2 rounded-full uppercase">
+                                  Confidential
+                                </span>
+                              </h4>
+                              <p className="text-[11px] text-slate-500">
+                                Only give this 4-digit code to the courier after you have physically received and inspected your package.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 4-Digit Security Code Badge */}
+                          <div className="bg-white dark:bg-slate-900 px-4 py-2.5 rounded-2xl border-2 border-orange-400 dark:border-orange-600 text-center sm:text-right shrink-0 shadow-inner">
+                            <span className="text-[9px] uppercase font-black tracking-wider text-slate-400 block">
+                              Your 4-Digit POD Code
+                            </span>
+                            <span className="font-mono text-2xl font-black text-orange-600 dark:text-orange-400 tracking-[0.25em]">
+                              {order.deliveryPodOtp || (order.riderDetails ? order.riderDetails.handoverOTP : '7492')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Assigned Courier Identification Card */}
+                        {order.riderDetails && (
+                          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-950/80 text-orange-600 flex items-center justify-center font-bold shrink-0">
+                                <Truck className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                  <span>{order.riderDetails.riderName}</span>
+                                  <span className="font-mono text-orange-600 font-extrabold">({order.riderDetails.plateNumber})</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  {order.riderDetails.stageOrCompany || 'SafeBoda Kampala Hub'} • NIN: {order.riderDetails.riderNIN}
+                                </p>
+                              </div>
+                            </div>
+
+                            <a
+                              href={`tel:${order.riderDetails.riderPhone}`}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors text-[11px] shrink-0"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-orange-600" />
+                              <span>Call Rider ({order.riderDetails.riderPhone})</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Items */}
                     <div>
                       <h4 className="font-bold text-slate-900 dark:text-white mb-2">Package Items</h4>

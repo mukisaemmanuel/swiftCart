@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, SellerPackage } from '../types';
+import { Product, ProductVariant, CartItem, SellerPackage } from '../types';
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, quantity?: number) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
+  addToCart: (
+    product: Product,
+    variantOrQuantity?: ProductVariant | number,
+    quantityOrAutoOpen?: number | boolean,
+    autoOpenDrawer?: boolean
+  ) => void;
+  updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
+  removeFromCart: (productId: string, variantId?: string) => void;
   clearCart: () => void;
   totalItemsCount: number;
   totalProductsAmountUGX: number;
@@ -24,7 +29,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem(LS_CART_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed)
+        ? parsed.filter((it) => it && it.product && typeof it.product === 'object' && typeof it.quantity === 'number')
+        : [];
     } catch {
       return [];
     }
@@ -35,35 +44,96 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LS_CART_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: Product, quantity = 1) => {
+  const addToCart = (
+    product: Product,
+    variantOrQuantity?: ProductVariant | number,
+    quantityOrAutoOpen?: number | boolean,
+    autoOpenDrawer?: boolean
+  ) => {
+    if (!product || !product.id) return;
+
+    let variant: ProductVariant | undefined = undefined;
+    let quantity = 1;
+    let openDrawer = true;
+
+    if (typeof variantOrQuantity === 'number') {
+      quantity = variantOrQuantity;
+      if (typeof quantityOrAutoOpen === 'boolean') {
+        openDrawer = quantityOrAutoOpen;
+      }
+    } else if (variantOrQuantity && typeof variantOrQuantity === 'object') {
+      variant = variantOrQuantity;
+      if (typeof quantityOrAutoOpen === 'number') {
+        quantity = quantityOrAutoOpen;
+      }
+      if (typeof autoOpenDrawer === 'boolean') {
+        openDrawer = autoOpenDrawer;
+      }
+    } else {
+      if (typeof quantityOrAutoOpen === 'boolean') {
+        openDrawer = quantityOrAutoOpen;
+      }
+    }
+
+    const safeQty = isNaN(Number(quantity)) || Number(quantity) <= 0 ? 1 : Math.round(Number(quantity));
+
+    // Calculate effective unit price with variant offset if any
+    const unitPrice =
+      variant && typeof variant.additionalPrice === 'number'
+        ? (Number(product.priceUGX) || 0) + variant.additionalPrice
+        : Number(product.priceUGX) || 0;
+
+    const cartProduct: Product = {
+      ...product,
+      priceUGX: unitPrice,
+    };
+
     setItems((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.product.id === product.id &&
+          ((!item.selectedVariant && !variant) || item.selectedVariant?.id === variant?.id)
+      );
+
+      if (existingIndex > -1) {
+        return prev.map((item, idx) =>
+          idx === existingIndex
+            ? { ...item, quantity: (Number(item.quantity) || 0) + safeQty }
             : item
         );
       }
-      return [...prev, { product, quantity }];
+      return [...prev, { product: cartProduct, quantity: safeQty, selectedVariant: variant }];
     });
-    setIsCartOpen(true);
+
+    if (openDrawer) {
+      setIsCartOpen(true);
+    }
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
+  const updateQuantity = (productId: string, quantity: number, variantId?: string) => {
+    const safeQty = Number(quantity);
+    if (isNaN(safeQty) || safeQty <= 0) {
+      removeFromCart(productId, variantId);
       return;
     }
     setItems((prev) =>
-      prev.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      )
+      prev.map((item) => {
+        const matches =
+          item.product.id === productId &&
+          (!variantId || item.selectedVariant?.id === variantId);
+        return matches ? { ...item, quantity: safeQty } : item;
+      })
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setItems((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = (productId: string, variantId?: string) => {
+    setItems((prev) =>
+      prev.filter((item) => {
+        if (item.product.id !== productId) return true;
+        if (variantId && item.selectedVariant?.id !== variantId) return true;
+        return false;
+      })
+    );
   };
 
   const clearCart = () => {
@@ -74,10 +144,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const packageMap = new Map<string, { sellerStoreName: string; items: CartItem[] }>();
 
   for (const item of items) {
-    const sellerId = item.product.sellerId;
+    const sellerId = item.product.sellerId || 'unknown_seller';
     if (!packageMap.has(sellerId)) {
       packageMap.set(sellerId, {
-        sellerStoreName: item.product.sellerStoreName,
+        sellerStoreName: item.product.sellerStoreName || 'SwiftCart Merchant',
         items: [],
       });
     }
@@ -87,7 +157,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sellerPackages: SellerPackage[] = Array.from(packageMap.entries()).map(
     ([sellerId, data]) => {
       const subtotalUGX = data.items.reduce(
-        (acc, it) => acc + it.product.priceUGX * it.quantity,
+        (acc, it) => acc + (Number(it.product.priceUGX) || 0) * (Number(it.quantity) || 1),
         0
       );
       // Flat standard local delivery per seller package in Uganda
@@ -103,13 +173,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   );
 
-  const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItemsCount = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
   const totalProductsAmountUGX = items.reduce(
-    (sum, item) => sum + item.product.priceUGX * item.quantity,
+    (sum, item) => sum + (Number(item.product.priceUGX) || 0) * (Number(item.quantity) || 1),
     0
   );
   const totalDeliveryFeeUGX = sellerPackages.reduce(
-    (sum, pkg) => sum + pkg.deliveryFeeUGX,
+    (sum, pkg) => sum + (Number(pkg.deliveryFeeUGX) || 0),
     0
   );
   const grandTotalUGX = totalProductsAmountUGX + totalDeliveryFeeUGX;

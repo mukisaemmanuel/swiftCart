@@ -31,20 +31,83 @@ export interface User {
   notificationPreferences?: NotificationPreferences;
 }
 
-export interface SellerApplication {
-  id: string;
-  applicantName: string;
-  email: string;
+export type SellerApplicationStatus =
+  | 'INVITED'
+  | 'DOCUMENTS_SUBMITTED'
+  | 'VERIFIED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PENDING_REVIEW'
+  | 'PENDING'; // backwards compatible
+
+export interface DirectSellerIntakeInput {
+  fullName: string;
+  shopName: string;
+  phoneNumber: string;
+  category: ProductCategory;
+  location: string;
+  adminNotes?: string;
+}
+
+export interface SellerInviteToken {
+  token: string;
+  applicationId: string;
   phone: string;
   storeName: string;
-  businessType: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+}
+
+export interface SellerKYCDocuments {
+  nationalIdUrl: string;
+  nationalIdBackUrl?: string;
+  businessCertUrl?: string;
+  proofOfFinancialUrl: string;
+  tinNumber?: string;
+  ninNumber: string;
+  entityType: 'sole_proprietorship' | 'registered_company' | 'individual';
+  payoutType: 'momo' | 'airtel' | 'bank';
+  accountName: string;
+  accountNumber: string;
+  bankName?: string;
+}
+
+export interface SellerApplication {
+  id: string;
+  full_name?: string;
+  applicantName: string;
+  shop_name?: string;
+  storeName: string;
+  phone_number?: string;
+  phone: string;
+  email: string;
+  businessType?: string;
+  category?: ProductCategory;
+  location?: string;
   district: string;
   address: string;
   description: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: SellerApplicationStatus;
   submittedAt: string;
-  reviewedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  invite_token?: string;
+  inviteToken?: string;
+  token_expires_at?: string;
+  inviteExpiresAt?: string;
+  token_used?: boolean;
+  tokenUsed?: boolean;
+  kyc_documents?: SellerKYCDocuments;
+  kycDocuments?: SellerKYCDocuments;
+  rejection_reason?: string;
   reviewNotes?: string;
+  admin_notes?: string;
+  adminNotes?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
 export interface AuditLog {
@@ -148,22 +211,66 @@ export type ProductCategory =
   | 'Computing & IT'
   | 'Sports & Outdoors';
 
+export type ProductStatus = 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+
+export interface ProductVariant {
+  id: string;
+  productId?: string;
+  variantName: string; // e.g. "Size: M", "Color: Onyx Black", "Storage: 256GB"
+  sku: string;
+  additionalPrice: number; // Additional price in UGX (0 if base price)
+  stockQuantity: number;
+}
+
+export interface ProductImageItem {
+  id: string;
+  productId?: string;
+  imageUrl: string;
+  isPrimary: boolean;
+  displayOrder: number;
+}
+
+export interface ProductSpecification {
+  name: string;
+  value: string;
+}
+
+export interface ProductQCReviewInput {
+  productId: string;
+  approved: boolean;
+  rejectionReason?: string;
+  adminNotes?: string;
+}
+
 export interface Product {
   id: string;
   sellerId: string;
   sellerStoreName: string;
   sellerDistrict?: string;
-  localZone?: string; // Specific Busia Area zone (e.g. 'busitema', 'dabani', 'sibanga', 'busia_town', etc.)
-  availableZones?: string[]; // Multiple local zones eligible for fast local delivery
+  localZone?: string; // Specific Area zone
+  availableZones?: string[];
   title: string;
   slug: string;
+  brand?: string;
   description: string;
-  priceUGX: number;
+  priceUGX: number; // Final buyer listing price
   originalPriceUGX?: number;
+  basePriceUGX?: number; // Net seller payout in UGX
+  calculatedListingPriceUGX?: number;
+  shippingContributionUGX?: number;
+  commissionRate?: number;
   category: ProductCategory;
   subcategory?: string;
   stockQuantity: number;
   images: string[];
+  productImages?: ProductImageItem[];
+  variants?: ProductVariant[];
+  specifications?: ProductSpecification[];
+  whatsInTheBox?: string;
+  status?: ProductStatus;
+  rejectionReason?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
   rating: number;
   reviewCount: number;
   isExpressDelivery?: boolean;
@@ -186,6 +293,7 @@ export interface Review {
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedVariant?: ProductVariant;
 }
 
 export interface SellerPackage {
@@ -197,7 +305,45 @@ export interface SellerPackage {
   totalUGX: number;
 }
 
-export type OrderStatus = 'Pending' | 'Confirmed' | 'Shipped' | 'Delivered' | 'Cancelled';
+export type OrderStatus =
+  | 'Pending'
+  | 'Confirmed'
+  | 'Ready_For_Pickup'
+  | 'Shipped'
+  | 'In_Transit'
+  | 'Delivered'
+  | 'Cancelled'
+  | 'Disputed';
+
+export type OrderDispatchStatus =
+  | 'ASSIGNED'
+  | 'PICKED_UP'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'DISPUTED';
+
+export interface OrderDispatch {
+  id: string;
+  orderId: string;
+  sellerId: string;
+  sellerStoreName: string;
+  riderName: string;
+  riderNIN: string;
+  riderPhone: string;
+  riderPlateNumber: string;
+  riderStageOrCompany: string;
+  riderPhotoUrl?: string;
+  handoverOtp: string;
+  isHandoverVerified: boolean;
+  deliveryPodOtp: string;
+  isPodVerified: boolean;
+  status: OrderDispatchStatus;
+  handoverTimestamp?: string;
+  deliveryTimestamp?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
 
 export type PaymentMethod = 'mobile_money' | 'card' | 'bank_transfer' | 'pay_on_delivery';
 export type PaymentProvider = 'mtn_momo' | 'airtel_money' | 'visa_mastercard' | 'bank_eft' | 'cash_border';
@@ -264,6 +410,9 @@ export interface Order {
   paymentReference?: string;
   paymentStatus: PaymentStatus;
   status: OrderStatus;
+  dispatchId?: string;
+  deliveryPodOtp?: string;
+  escrowStatus?: EscrowState;
   riderDetails?: RiderHandoverDetails;
   trackingHistory: OrderTrackingStep[];
   createdAt: string;
@@ -276,6 +425,7 @@ export interface RiderHandoverDetails {
   riderPhone: string;
   plateNumber: string;
   stageOrCompany?: string;
+  riderPhotoUrl?: string;
   handoverOTP: string;
   isOTPVerified: boolean;
   dispatchedAt: string;

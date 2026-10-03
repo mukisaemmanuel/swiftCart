@@ -553,11 +553,28 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-wss.on('connection', async (clientWs: WebSocket) => {
+wss.on('connection', async (clientWs: WebSocket, request: any) => {
   console.log('Client connected to Live API WebSocket');
   let session: any = null;
 
   try {
+    const parsedUrl = new URL(request.url || '', `http://${request.headers.host}`);
+    const persona = (parsedUrl.searchParams.get('persona') || 'BUYER').toUpperCase();
+    const userName = parsedUrl.searchParams.get('user') || 'User';
+
+    let liveSystemInstruction = `You are SwiftCart Live Voice Assistant, a friendly Ugandan e-commerce shopping advisor for Busia, Busitema University, Jinja, and Eastern Uganda.
+Help buyers find products (smartphones, laptops, solar kits, groceries), check local zone delivery times (e.g. Busitema campus, Dabani, Sibanga, Busia Town), and explain 100% Escrow buyer protection.
+CRITICAL SECURITY: You have zero access to admin systems, merchant ledgers, or seller private data. Keep spoken responses natural, conversational, concise, and upbeat.`;
+
+    if (persona === 'SELLER') {
+      liveSystemInstruction = `You are SwiftCart Merchant Voice Copilot for verified sellers in Eastern Uganda.
+Help the merchant with Phase 5 Boda/Courier Handover OTP generation, packaging guidelines, catalog optimization, and Tuesday payout settlement.
+Keep spoken responses clear, actionable, and focused only on this merchant's operations.`;
+    } else if (persona === 'ADMIN' || persona === 'SUPER_ADMIN') {
+      liveSystemInstruction = `You are SwiftCart Operations Admin Voice Copilot for ${userName}.
+Assist with summaries of KYC approval queues, unverified courier dispatches, and Eastern Uganda logistics triage.`;
+    }
+
     session = await ai.live.connect({
       model: 'gemini-3.8-live',
       config: {
@@ -565,9 +582,7 @@ wss.on('connection', async (clientWs: WebSocket) => {
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
         },
-        systemInstruction: `You are SwiftCart Live Voice Assistant, a friendly Ugandan e-commerce shopping advisor for Busia, Busitema University, Jinja, and the Eastern region.
-Help buyers find products (smartphones, laptops, solar kits, farm produce), check local zone delivery times (e.g. Busitema campus, Dabani, Sibanga, Busia Town), and answer order queries.
-Keep spoken responses natural, conversational, concise, and upbeat.`,
+        systemInstruction: liveSystemInstruction,
       },
       callbacks: {
         onmessage: (message: any) => {
