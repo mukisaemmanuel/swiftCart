@@ -69,15 +69,13 @@ const formatWhatsAppPhone = (phone: string): string => {
 
 const INTAKE_CATEGORIES: ProductCategory[] = [
   'Phones & Tablets',
-  'Electronics & TV',
+  'Electronics & Audio',
+  'Supermarket & Groceries',
   'Fashion & Apparel',
+  'Home & Appliances',
   'Health & Beauty',
-  'Home & Kitchen',
-  'Groceries & Supermarket',
-  'Solar & Power Solutions',
-  'Computing & Accessories',
-  'Baby, Kids & Toys',
-  'Automotive & Hardware',
+  'Computing & IT',
+  'Sports & Outdoors',
 ];
 
 const INTAKE_DISTRICTS = [
@@ -1155,7 +1153,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
                 {(
                   [
-                    { id: 'ALL', label: 'All Items', count: products.length },
+                    { id: 'ALL', label: 'All Items', count: products.length, color: 'text-slate-600 bg-slate-200 dark:bg-slate-700' },
                     { id: 'UNDER_REVIEW', label: 'Needs Review', count: pendingQCCount, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60' },
                     { id: 'APPROVED', label: 'Approved', count: approvedQCCount, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60' },
                     { id: 'REJECTED', label: 'Rejected', count: rejectedQCCount, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/60' },
@@ -1712,7 +1710,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                   <span className="text-xs text-slate-400 font-mono">ID: {selectedProductForQC.id}</span>
                 </div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                  {selectedProductForQC.title || selectedProductForQC.name}
+                  {selectedProductForQC.title}
                 </h3>
                 <div className="flex items-center gap-3 text-xs text-slate-500">
                   <span>Category: <strong>{selectedProductForQC.category}</strong></span>
@@ -1739,8 +1737,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Product Visuals</span>
                   <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
                     <img
-                      src={selectedProductForQC.image}
-                      alt={selectedProductForQC.title || selectedProductForQC.name}
+                      src={selectedProductForQC.images?.[0] || (selectedProductForQC as any).image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80'}
+                      alt={selectedProductForQC.title || (selectedProductForQC as any).name}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -1748,8 +1746,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                     <div className="flex items-center gap-2 overflow-x-auto pb-1">
                       {selectedProductForQC.images.map((img, idx) => (
                         <img
-                          key={img.id || idx}
-                          src={img.url}
+                          key={idx}
+                          src={typeof img === 'string' ? img : (img as any).url || ''}
                           alt="Thumbnail"
                           className="w-16 h-16 rounded-xl object-cover border-2 border-slate-200 dark:border-slate-700"
                         />
@@ -1773,7 +1771,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {selectedProductForQC.specifications.map((spec, i) => (
                         <div
-                          key={spec.id || i}
+                          key={`${spec.name}-${i}`}
                           className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs flex justify-between"
                         >
                           <span className="text-slate-400 font-medium">{spec.name}:</span>
@@ -1809,12 +1807,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                           {selectedProductForQC.variants.map((v, idx) => (
                             <tr key={v.id || idx}>
-                              <td className="p-2.5 font-bold text-slate-900 dark:text-white">{v.name}</td>
+                              <td className="p-2.5 font-bold text-slate-900 dark:text-white">{v.variantName || (v as any).name}</td>
                               <td className="p-2.5 font-mono text-[11px] text-slate-500">{v.sku}</td>
                               <td className="p-2.5 text-slate-700 dark:text-slate-300">
                                 {v.additionalPrice > 0 ? `+UGX ${v.additionalPrice.toLocaleString()}` : 'Base'}
                               </td>
-                              <td className="p-2.5 font-bold text-slate-900 dark:text-white">{v.stock} units</td>
+                              <td className="p-2.5 font-bold text-slate-900 dark:text-white">{v.stockQuantity ?? (v as any).stock ?? 0} units</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1890,7 +1888,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
                 {/* Actions */}
                 <div className="space-y-2.5 pt-2">
                   <button
-                    onClick={() => handleApproveProduct(selectedProductForQC.id)}
+                    onClick={() => handleApproveProduct(selectedProductForQC)}
                     className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-2xl shadow-lg transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -1926,7 +1924,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToShopping, initia
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              Provide actionable feedback for the seller explaining why <strong>{selectedProductForQC.title || selectedProductForQC.name}</strong> was not approved:
+              Provide actionable feedback for the seller explaining why <strong>{selectedProductForQC.title}</strong> was not approved:
             </p>
 
             {/* Preset Rejection Reasons */}

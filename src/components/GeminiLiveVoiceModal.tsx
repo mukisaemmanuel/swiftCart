@@ -242,7 +242,7 @@ export const GeminiLiveVoiceModal: React.FC<GeminiLiveVoiceModalProps> = ({
 
     try {
       const audioCtx = outputAudioCtxRef.current;
-      const audioBuffer = base64PCMToAudioBuffer(base64Pcm, audioCtx, 24000);
+      const audioBuffer = base64PCMToAudioBuffer(audioCtx, base64Pcm, 24000);
 
       const sourceNode = audioCtx.createBufferSource();
       sourceNode.buffer = audioBuffer;

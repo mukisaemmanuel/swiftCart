@@ -704,16 +704,59 @@ class DatabaseService {
     return [];
   }
 
-  async getOrderById(orderId: string): Promise<Order | null> {
+  async getOrdersBySeller(sellerId: string): Promise<Order[]> {
+    return this.getOrders(undefined, sellerId);
+  }
+
+  async createOrder(orderData: Omit<Order, 'id'> | Partial<Order>): Promise<string> {
+    const orderId = orderData.id || `SC-ORD-${Date.now().toString().slice(-6)}`;
+    const fullOrder: Order = {
+      id: orderId,
+      masterOrderId: orderData.masterOrderId || orderId,
+      buyerId: orderData.buyerId || 'guest',
+      buyerName: orderData.buyerName || 'Valued Customer',
+      buyerPhone: orderData.buyerPhone || '+256700000000',
+      buyerEmail: orderData.buyerEmail || '',
+      sellerId: orderData.sellerId || 'seller_default',
+      sellerStoreName: orderData.sellerStoreName || 'SwiftCart Merchant',
+      items: orderData.items || [],
+      deliveryAddress: orderData.deliveryAddress || {
+        fullName: orderData.buyerName || 'Valued Customer',
+        phone: orderData.buyerPhone || '+256700000000',
+        district: 'Busia',
+        subCountyOrTown: 'Busia Town',
+        streetAddress: 'Main Road',
+      },
+      subtotalUGX: orderData.subtotalUGX || 0,
+      deliveryFeeUGX: orderData.deliveryFeeUGX || 0,
+      totalUGX: orderData.totalUGX || 0,
+      paymentMethod: orderData.paymentMethod || 'mobile_money',
+      paymentProvider: orderData.paymentProvider || 'mtn_momo',
+      paymentPhone: orderData.paymentPhone || orderData.buyerPhone || '',
+      paymentReference: orderData.paymentReference || `TX-${Date.now()}`,
+      paymentStatus: orderData.paymentStatus || 'paid',
+      status: orderData.status || 'Confirmed',
+      escrowStatus: orderData.escrowStatus || 'HELD_IN_ESCROW',
+      trackingSteps: orderData.trackingSteps || [
+        {
+          status: 'Confirmed',
+          label: 'Order Placed & Escrow Paid',
+          description: 'Payment authorized and securely held in escrow.',
+          timestamp: new Date().toISOString(),
+          completed: true,
+          current: true,
+        },
+      ],
+      createdAt: orderData.createdAt || new Date().toISOString(),
+    };
+
     try {
-      const snap = await withTimeout(getDoc(doc(db, 'orders', orderId)), 8000);
-      if (snap.exists()) {
-        return snap.data() as Order;
-      }
+      await withTimeout(setDoc(doc(db, 'orders', orderId), fullOrder), 8000);
     } catch (e: any) {
-      console.error('Firestore getOrderById error:', e?.message || e);
+      console.error('Firestore createOrder error:', e?.message || e);
     }
-    return null;
+
+    return orderId;
   }
 
   // Real-time live listener for Orders (auto-refreshes Admin & Seller dashboards on new orders)

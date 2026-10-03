@@ -273,7 +273,7 @@ function MarketplaceApp() {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = (p.title || p.name || '').toLowerCase().includes(q);
+      const matchTitle = (p.title || (p as any).name || '').toLowerCase().includes(q);
       const matchDesc = (p.description || '').toLowerCase().includes(q);
       const matchCategory = (p.category || '').toLowerCase().includes(q);
       const matchSeller = (p.sellerStoreName || '').toLowerCase().includes(q);

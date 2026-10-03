@@ -119,6 +119,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
   const [manualUrlInput, setManualUrlInput] = useState('');
   const [showManualUrl, setShowManualUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const riderPhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Product Form State
   const [productForm, setProductForm] = useState<{
@@ -341,6 +342,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
       setIsSubmittingPod(false);
     }
   };
+
 
   // Rider Snapshot Photo Upload with Compression
   const handleRiderPhotoUpload = async (files: FileList | null) => {
@@ -979,7 +981,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
               {(
                 [
-                  { id: 'ALL', label: 'All Listings', count: products.length },
+                  { id: 'ALL', label: 'All Listings', count: products.length, color: 'text-slate-600 bg-slate-200 dark:bg-slate-700' },
                   { id: 'APPROVED', label: 'Live on Store', count: products.filter((p) => p.status === 'APPROVED' || !p.status).length, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60' },
                   { id: 'UNDER_REVIEW', label: 'Under QC Review', count: products.filter((p) => p.status === 'UNDER_REVIEW').length, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60' },
                   { id: 'REJECTED', label: 'Needs Fix', count: products.filter((p) => p.status === 'REJECTED').length, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/60' },
@@ -1211,8 +1213,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({ onBackToShoppi
       {/* ========================================================= */}
       {/* 5. ANALYTICS VIEW */}
       {/* ========================================================= */}
-      {activeNav === 'analytics' && (
-        <SellerAnalyticsCharts orders={orders} products={products} sellerId={currentSeller.id} />
+      {activeNav === 'analytics' && currentSeller && (
+        <SellerAnalyticsCharts
+          orders={orders}
+          products={products}
+          sellerStoreName={currentSeller.storeName}
+          sellerDistrict={currentSeller.district}
+        />
       )}
 
       {/* ========================================================= */}

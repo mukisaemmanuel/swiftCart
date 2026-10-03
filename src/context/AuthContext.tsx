@@ -257,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: emailLower,
               phone: '+256700000001',
               role: 'admin',
+              status: 'ACTIVE',
               createdAt: new Date().toISOString(),
               avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=250&q=80',
               notificationPreferences: {

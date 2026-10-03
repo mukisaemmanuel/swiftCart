@@ -136,6 +136,10 @@ class PaymentService {
   private mtn = new MtnMoMoSimulator();
   private airtel = new AirtelMoneySimulator();
 
+  async initiatePayment(req: PaymentInitiationRequest): Promise<PaymentInitiationResponse> {
+    return this.initiateMobileMoney(req);
+  }
+
   async initiateMobileMoney(req: PaymentInitiationRequest): Promise<PaymentInitiationResponse> {
     if (req.provider === 'airtel_money') {
       return this.airtel.initiatePayment(req);
